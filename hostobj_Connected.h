@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <map>
+#include "link.h"
 
 class HostObj{
 public:
@@ -8,18 +9,20 @@ public:
 
     void addLink(std::string, int, int);
     void printLinks();
-    std::map< std::string, std::pair<int, int> > getLinks();
+    std::map< std::string, struct link > getLinks();
 
     void printTable();
     void updateTable(std::string, std::string, int);
-    void reGenTable();
+    void regenTable();
+    void activateNeighbour(std::string);
+    void deleteNeighbour(std::string);
 
     std::string getHostname();
     int getWeight(std::string);
     int getsendPort(std::string);
     int getreceivePort();
 private:
-    std::map< std::string, std::pair<int, int> > links;
+    std::map< std::string, struct link > links;
     std::string hostname;
     int receiveport;
     std::map< std::string, std::map< std::string, int > > fwdtable;

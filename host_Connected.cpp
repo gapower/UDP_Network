@@ -19,7 +19,6 @@
 
 #define MAXBUF 1024
 
-//More testing by Peter...
 using namespace std;
 
 int main(int argc, char* argv[])
@@ -338,7 +337,7 @@ int main(int argc, char* argv[])
         }
     }
 
-/*
+
     // Set up listening socket
     //Initialize the command-line arguments
     int myPort = thisHost.getreceivePort();
@@ -366,10 +365,9 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
-    std::map< std::string, std::pair<int, int> > links = thisHost.getLinks();
-    map< std::string, std::pair<int, int> >::iterator itr;
-    map< std::string, struct sockaddr_in > linkedAddrs;
-    map< std::string, struct sockaddr_in > ::iterator itrAddr;
+    std::map< std::string, struct link > links = thisHost.getLinks();
+    map< std::string, struct link >::iterator itr;
+
     struct sockaddr_in nodeAddr;
 
     // initialising neighbouring port addresses
@@ -377,13 +375,14 @@ int main(int argc, char* argv[])
         memset(&nodeAddr, 0, sizeof(nodeAddr));
 
         nodeAddr.sin_family = AF_INET;
-        nodeAddr.sin_port = htons(itr->second.first);
+        nodeAddr.sin_port = htons(itr->second.port);
         if (inet_aton("127.0.0.1", &nodeAddr.sin_addr) == 0){
             fprintf(stderr, "Error when using 'inet_aton()'\n");
             exit(1);
         }
 
-        linkedAddrs.insert(pair<string, struct sockaddr_in> (itr->first, nodeAddr));
+        itr->second.address = nodeAddr;
+        //linkedAddrs.insert(pair<string, struct sockaddr_in> (itr->first, nodeAddr));
     }
 
     int command = 0;
@@ -420,9 +419,9 @@ int main(int argc, char* argv[])
             cin >> m;
             message = m.c_str();
 
-            for(itrAddr = linkedAddrs.begin(); itrAddr != linkedAddrs.end(); ++itrAddr){
+            for(itr = links.begin(); itr != links.end(); ++itr){
 
-                sendto(sockfd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itrAddr->second,  sizeof(itrAddr->second));
+                sendto(sockfd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address,  sizeof(itr->second.address));
 
             }
 
@@ -430,32 +429,61 @@ int main(int argc, char* argv[])
         }
 
     }
-*/
 
+
+    // Simulate an update message
+    // What happens?
+    // Start table, ping.. ping.. ping..
+    // Recieve almost blank table from neighbour
+    // Update table, send update to neighbour
+    // Receive further updated table
+      /*
     cout << endl;
     thisHost.printLinks();
 
-    cout << endl << "ORIGINAL TABLE NO ALTERATIONS" << endl;
+    cout << endl << "HOST STARTS UP" << endl;
     thisHost.printTable();
 
-    // Simulate an update message
-    cout << endl << "TABLE WITH INCOMING DATA" << endl;
+    cout << endl << "NEIGHBOUR B HAS COME ALIVE" << endl;
+    thisHost.activateNeighbour("B");
+    thisHost.updateTable("B","B", 0);
+    thisHost.regenTable();
+    thisHost.printTable();
+
+    cout << endl << "RECEIVED DATA FROM B" << endl;
     thisHost.updateTable("B","A", 4);
     thisHost.updateTable("B","C", 3);
-    thisHost.updateTable("B","E", 2);
     thisHost.updateTable("B","F", 1);
-
-    thisHost.updateTable("E","A", 1);
-    thisHost.updateTable("E","B", 2);
-    thisHost.updateTable("E","F", 3);
-
     thisHost.printTable();
 
-    cout << endl << "TABLE REGENERATED TO ACCOMODATE DATA" << endl;
-    thisHost.reGenTable();
+    cout << endl << "CALCULATE DISTANCE VECTORS" << endl;
+    thisHost.regenTable();
+    thisHost.printTable();
+
+    cout << endl << "NEIGHBOUR E HAS COME ALIVE" << endl;
+    thisHost.activateNeighbour("E");
+    thisHost.updateTable("E","E", 0);
+    thisHost.regenTable();
+    thisHost.printTable();
+
+    cout << endl << "RECEIVED DATA FROM E" << endl;
+    thisHost.updateTable("E","A", 1);
+    thisHost.updateTable("E","F", 3);
+    thisHost.printTable();
+
+    cout << endl << "RECALCULATE DISTANCE VECTORS" << endl;
+    thisHost.regenTable();
+    thisHost.printTable();
+
+    cout << endl << "NODE B HAS CRASHED" << endl;
+    thisHost.deleteNeighbour("B");
+    thisHost.printTable();
+
+    cout << endl << "RECALCULATE DISTANCE VECTORS" << endl;
+    thisHost.regenTable();
     thisHost.printTable();
     cout << endl;
-
+    */
     datafile.close();
 
 	return 0;
