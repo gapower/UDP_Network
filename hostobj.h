@@ -23,6 +23,7 @@ public:
     int getreceivePort();
 
     struct link* findSendLink(std::string);
+    void clearRow(std::string);
 private:
     std::map< std::string, struct link > links;
     std::string hostname;

@@ -7,4 +7,5 @@ public:
     int weight;
     bool active;
     struct sockaddr_in address;
+    // Possibly include timeout attribute?
 };

@@ -285,6 +285,13 @@ struct link* HostObj::findSendLink(string dest){
     return SendingLink;
 }
 
+void HostObj::clearRow(string row){
+    if(fwdtable.find(row) != fwdtable.end()){
+        fwdtable.erase(row);
+    }
+    else return;
+}
+
 string HostObj::getHostname(){
     return hostname;
 }
