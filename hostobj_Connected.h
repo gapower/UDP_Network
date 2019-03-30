@@ -4,7 +4,7 @@
 
 class HostObj{
 public:
-    HostObj(std::string);
+    HostObj(std::string); // Constructor...
 
     void addLink(std::string, int, int);
     void printLinks();
@@ -19,7 +19,7 @@ public:
     int getsendPort(std::string);
     int getreceivePort();
 private:
-    std::map< std::string, std::pair<int, int> > links;
+    std::map< std::string, std::pair<int, int> > links; // Host name, port, weight...?
     std::string hostname;
     int receiveport;
     std::map< std::string, std::map< std::string, int > > fwdtable;

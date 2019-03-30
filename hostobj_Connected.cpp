@@ -7,7 +7,7 @@ using namespace std;
 
 HostObj::HostObj(std::string name){
     hostname = name;
-    receiveport = name[0] + 9935;
+    receiveport = name[0] + 9935 ;// I guess 9935 refers to the minimum port of A(10001)? 
     /*
     for(int i = 0; i < 6; i++)
         for(int j = 0; j < 6; j++)
@@ -21,6 +21,8 @@ HostObj::HostObj(std::string name){
     fwdtable.insert(pair<string, map<string, int> >(hostname, newMap));
 }
 
+
+
 void HostObj::addLink(string dest, int port, int weight){
     links.insert(pair<string, pair<int, int> >(dest, pair<int, int>(port, weight)));
 
@@ -30,6 +32,9 @@ void HostObj::addLink(string dest, int port, int weight){
 
     return;
 }
+
+
+
 
 void HostObj::printLinks(){
     map<string, pair<int, int> >::iterator itr;
@@ -94,6 +99,10 @@ void HostObj::updateTable(std::string src, std::string dest, int newWeight){
 
     return;
 }
+
+
+
+
 
 void HostObj::reGenTable(){
     int cost;

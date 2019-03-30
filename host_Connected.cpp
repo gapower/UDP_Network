@@ -303,9 +303,14 @@ int main(int argc, char* argv[])
     }
     datafile.close();
 
+
+
     // XML reader
     datafile.open("neighbourhood.xml", ios::in);
 
+
+    //Code for reading through the xml file and inputting the data for the given
+    //argument, i.e the Host name (A,B,C...)
     while(datafile >> currInput) {
         tempHostname = "";
         //cout << "READING IN " << currInput << endl;
@@ -338,16 +343,20 @@ int main(int argc, char* argv[])
         }
     }
 
-/*
+
+
+
     // Set up listening socket
     //Initialize the command-line arguments
     int myPort = thisHost.getreceivePort();
     //int NodePort = atoi(argv[2]);
+
     //Initialize otehr variables
     int sockfd;
     char buffer[MAXBUF];
     //Socket addresses for THIS node and the node we wish to connect to
     struct sockaddr_in myAddr;//, nodeAddr;
+
     //Create socket
     if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
         perror("Failed to create socket");
@@ -355,6 +364,7 @@ int main(int argc, char* argv[])
     }
     //(I think this sets the addresses to 0)
     memset(&myAddr, 0, sizeof(myAddr));
+
     //memset(&nodeAddr, 0, sizeof(nodeAddr));
     //Information of MY node
     myAddr.sin_family    = AF_INET; // IPv4
@@ -416,21 +426,50 @@ int main(int argc, char* argv[])
             string m;
             const char* message;
 
+            string desiredPort;
+
+            cout << "Enter the host name you'd like to contact: ";
+            cin >> desiredPort;
+
+            //looptofind desiredPort
+            itrAddr = linkedAddrs.begin();
+            while(itrAddr != linkedAddrs.end()){
+
+              if((itrAddr->first) == desiredPort){
+                cout << "Host " << itrAddr->first << " found\n";
+                break;
+              }
+              else {
+                cout << "Host not found\n";
+                ++itrAddr;
+              }
+
+            }
+
             cout << "Enter the message that you wish to send: ";
             cin >> m;
             message = m.c_str();
 
-            for(itrAddr = linkedAddrs.begin(); itrAddr != linkedAddrs.end(); ++itrAddr){
+            //I would like to test sending to specific port,
+
+
+            //for(itrAddr = linkedAddrs.begin(); itrAddr != linkedAddrs.end(); ++itrAddr){
 
                 sendto(sockfd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itrAddr->second,  sizeof(itrAddr->second));
 
-            }
+            //}
 
 
         }
 
-    }
-*/
+    }//End of running process
+
+
+
+
+
+
+/*
 
     cout << endl;
     thisHost.printLinks();
@@ -455,7 +494,7 @@ int main(int argc, char* argv[])
     thisHost.reGenTable();
     thisHost.printTable();
     cout << endl;
-
+*/
     datafile.close();
 
 	return 0;
