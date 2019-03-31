@@ -1,28 +1,25 @@
 #pragma once
 #include <string>
 #include <map>
-#include "link.h"
 
 class HostObj{
 public:
-    HostObj(std::string);
+    HostObj(std::string); // Constructor...
 
     void addLink(std::string, int, int);
     void printLinks();
-    std::map< std::string, struct link > getLinks();
+    std::map< std::string, std::pair<int, int> > getLinks();
 
     void printTable();
     void updateTable(std::string, std::string, int);
-    void regenTable();
-    void activateNeighbour(std::string);
-    void deleteNeighbour(std::string);
+    void reGenTable();
 
     std::string getHostname();
     int getWeight(std::string);
     int getsendPort(std::string);
     int getreceivePort();
 private:
-    std::map< std::string, struct link > links;
+    std::map< std::string, std::pair<int, int> > links; // Host name, port, weight...?
     std::string hostname;
     int receiveport;
     std::map< std::string, std::map< std::string, int > > fwdtable;
