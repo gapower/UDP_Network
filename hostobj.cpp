@@ -324,7 +324,7 @@ std::map< std::string, link > HostObj::getLinks(){
     return links;
 }
 
-string HostObj::getDistanceVector(string source){ 
+string HostObj::getDistanceVector(string source){
     map< string, map<string, int> >::iterator DistVec;
     map<string, int>::iterator itr;
     string output = "";
@@ -337,6 +337,8 @@ string HostObj::getDistanceVector(string source){
         output += to_string(itr->second);
         output += " ";
     }
-
+    output = output.substr(0, output.length() - 1);
+    output += "\n";
+    
     return output;
 }

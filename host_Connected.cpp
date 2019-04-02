@@ -503,7 +503,7 @@ int main(int argc, char* argv[])
 
     string command;
     int commandNumber = 0;
-     int runtimes = 0;
+    int runtimes = 0;
 
 
 
@@ -583,15 +583,15 @@ int main(int argc, char* argv[])
 
                     //looptofind desiredPort
                     bool desiredHostFound = false;
-                    itrAddr = linkedAddrs.begin();
-                    while(itrAddr != linkedAddrs.end()&& !desiredHostFound){
+                    itr = links.begin()
+                    while(itr!= links.end()&& !desiredHostFound){
 
                         if((itrAddr->first) == desiredPort){
                           cout << "Host " << itrAddr->first << " found succesfully.\n";
                           desiredHostFound=true;
                         }
                         else {
-                          ++itrAddr;
+                          ++itr;
                         }
 
                     }
@@ -615,7 +615,7 @@ int main(int argc, char* argv[])
                       cMessage = stringToSend.c_str();
                       //for(itrAddr = linkedAddrs.begin(); itrAddr != linkedAddrs.end(); ++itrAddr){
 
-                          sendto(sockfd, (const char *)cMessage, strlen(cMessage), 0, (const struct sockaddr *) &itrAddr->second,  sizeof(itrAddr->second));
+                          sendto(sockfd, (const char *)cMessage, strlen(cMessage), 0, (const struct sockaddr *) &itr->second.address,  sizeof(itr->second.address));
 
                       //}
 
