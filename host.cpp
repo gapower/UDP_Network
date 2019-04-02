@@ -415,7 +415,7 @@ int main(int argc, char* argv[])
     bool send = true;
 
     string RouterChar = argv[1];
-    string m = "Router " + RouterChar;
+    string m = "type:dv\nsrc:" + RouterChar+ "\ndata:cheese";
     const char* message = m.c_str();
 
     while(true){
@@ -423,71 +423,73 @@ int main(int argc, char* argv[])
         erfds = wfds;
         numSockets = 0;
 
-        //if(send){
-  //          if(FD_ISSET(sockfd, &wfds)){
-    //            for(itr = links.begin(); itr != links.end(); ++itr){
-      //              sendto(sockfd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address,  sizeof(itr->second.address));
-       //         } 
-        //    }
-            //send = false;
-        //}
-
-    //    if(FD_ISSET(sockfd, &rfds)){
-            // Put message parsing here
-    //        n = recvfrom(sockfd, buffer, MAXBUF, 0, ( struct sockaddr *) &nodeAddr, &len);
-     //       buffer[n] = '\0';
-     //       cout << "Node: ";
-      //      for(int i = 0; i < n; i++){
-        //        cout << buffer[i];
-        //    }
-         //   cout << endl;
-        //}
-
         if((numSockets = select(maxSockfd + 1, &rfds, NULL, NULL, &myTime)) < 0) {
             perror("select");
             return -1;
         }
-        cout << "numSockets = " << numSockets << endl;
+        //cout << "numSockets = " << numSockets << endl;
         if(numSockets == 0){
 
-            //myTime.tv_sec = 5;
+            myTime.tv_sec = 5;
 
-            for(itr = links.begin(); itr != links.end(); ++itr){
-                if(itr->second.active)
-                    itr->second.lifetime -= 5;
-
-                if(itr->second.lifetime < 0)
-                    thisHost.deleteNeighbour(itr->first);
-
+            for(int fd = 0; fd <= maxSockfd; fd++){
+                for(itr = links.begin(); itr != links.end(); ++itr){
+                    sendto(fd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address,  sizeof(itr->second.address));
+                } 
             }
-
-            send = true;
         }
         else{
-
-                
-
-        
             for(int fd = 0; fd <= maxSockfd; fd++){
-                // In theory we have 1 reading socket
-                if(FD_ISSET(fd, &rfds)){
-                    // Put message parsing here
-                    n = recvfrom(fd, buffer, MAXBUF, 0, ( struct sockaddr *) &nodeAddr, &len);
+                if((n = recvfrom(fd, buffer, MAXBUF, 0, ( struct sockaddr *) &nodeAddr, &len)) > 0){
+
                     buffer[n] = '\0';
-                    cout << "Node: ";
+
+                    string input = string(buffer);
+                    string temp = "src:";
+                        
+                    int marker = input.find(temp);
+                    char source = buffer[marker+temp.length()];
+
+                    for(itr = links.begin(); itr != links.end(); ++itr){
+
+                        if(!(itr->second.active)){
+
+                            if((itr->second.port - 9935) == source){
+
+                                cout << endl << "Detected Router " << source << " as active" << endl << endl;;
+                                itr->second.active = true;
+                                itr->second.lifetime = 15;
+
+                                sendto(fd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address,  sizeof(itr->second.address));
+                            }
+                            
+                        }
+                        /*
+                        if((itr->second.active)){
+
+                            if((itr->second.port - 9935) != source){
+
+                                itr->second.lifetime -= 5;
+
+                            }
+                            else itr->second.lifetime = 15;
+                            
+                            if(itr->second.lifetime < 0){
+
+                                cout << "Detected Router " << source << " as INACTIVE" << endl;
+                                itr->second.active = false;
+
+                            }
+
+                        }
+                        */
+                    }
+                    
+                    cout << "MESSAGE\n";
                     for(int i = 0; i < n; i++){
                         cout << buffer[i];
                     }
-                    cout << endl;
-                }
-                
-                if(send){
-                    if(FD_ISSET(fd, &wfds)){
-                        for(itr = links.begin(); itr != links.end(); ++itr){
-                            sendto(fd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address,  sizeof(itr->second.address));
-                        } 
-                    }
-                    send = false;
+                    cout << endl << endl;
                 }
             }
         }
