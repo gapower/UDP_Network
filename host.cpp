@@ -339,7 +339,6 @@ int main(int argc, char* argv[])
 
     datafile.close();
 
-    /*
     // CONNECTION TESTING
     // Set up listening socket
     //Initialize the command-line arguments
@@ -385,8 +384,73 @@ int main(int argc, char* argv[])
         }
 
         itr->second.address = nodeAddr;
-        //linkedAddrs.insert(pair<string, struct sockaddr_in> (itr->first, nodeAddr));
     }
+
+
+
+
+// SELECT STATEMENT ATTEMPT
+
+/*
+    struct timeval myTime;
+    int n, numSockets;
+    socklen_t len;
+    
+    myTime.tv_sec = 0;
+    myTime.tv_usec = 500000;
+
+    fd_set rfds;
+    fd_set wfds;
+    FD_ZERO(&rfds);
+    FD_ZERO(&wfds);
+
+    int maxSockfd = sockfd;
+
+    FD_SET(sockfd, &rfds);
+    FD_SET(sockfd, &wfds);
+
+    while(true){
+        rfds = wfds;
+        
+        if(select(maxSockfd + 1, &rfds, &wfds, NULL, &myTime) < 0) {
+            perror("select");
+            return -1;
+        }
+
+        if(FD_ISSET(sockfd, &rfds)){
+            n = recvfrom(sockfd, buffer, MAXBUF, 0, ( struct sockaddr *) &nodeAddr, &len);
+            buffer[n] = '\0';
+            cout << "Node: ";
+            for(int i = 0; i < n; i++){
+                cout << buffer[i];
+            }
+            cout << endl;
+        }
+        string RouterChar = argv[1];
+        string m = "Router " + RouterChar;
+        const char* message = m.c_str();
+        
+        if(FD_ISSET(sockfd, &wfds)){
+            for(itrAddr = linkedAddrs.begin(); itrAddr != linkedAddrs.end(); ++itrAddr){
+
+                sendto(sockfd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itrAddr->second,  sizeof(itrAddr->second));
+
+            }   
+        }
+    }
+*/
+
+
+
+
+
+
+
+
+
+
+
+
 
     int command = 0;
 
@@ -431,9 +495,9 @@ int main(int argc, char* argv[])
 
         }
 
-    }*/
+    }
 
-
+/*
     // DISTANCE VECTOR TESTING
     // Relevant HostObj Functions:
     // clearRow()           When receiving an update message, must disregard previous information using this function
@@ -533,6 +597,9 @@ int main(int argc, char* argv[])
     if(thisHost.findSendLink("E") != NULL)
       cout << "To send to router E, outgoing router is " << char(thisHost.findSendLink("E")->port - 9935) << endl;
     else cout << "No passage to E" << endl;
+
+    cout << endl << "Distance Vector for F is: " << thisHost.getDistanceVector("F") << endl;
+*/
 
 	return 0;
 }

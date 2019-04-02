@@ -28,7 +28,7 @@ void HostObj::addLink(string dest, int port, int weight){
     newLink.port = port;
     newLink.weight = weight;
     newLink.active = false;
-    // Maybe add a struct
+    newLink.lifetime = 0;
 
     links.insert(pair<string, link >(dest, newLink));
 
@@ -47,6 +47,7 @@ void HostObj::activateNeighbour(string neighbour){
       return;
 
     links.find(neighbour)->second.active = true;
+    links.find(neighbour)->second.lifetime = 15;
     weight = links.find(neighbour)->second.weight;
 
     fwdtable.find(hostname)->second.insert(pair<string, int>(neighbour, weight));
@@ -57,6 +58,7 @@ void HostObj::deleteNeighbour(string neighbour){
       return;
 
     links.find(neighbour)->second.active = false;
+    links.find(neighbour)->second.lifetime = 0;
     fwdtable.erase(neighbour);
 }
 
@@ -320,4 +322,21 @@ int HostObj::getreceivePort(){
 
 std::map< std::string, link > HostObj::getLinks(){
     return links;
+}
+
+string HostObj::getDistanceVector(string source){ 
+    map< string, map<string, int> >::iterator DistVec;
+    map<string, int>::iterator itr;
+    string output = "";
+
+    DistVec = fwdtable.find(source);
+
+    for(itr = DistVec->second.begin(); itr != DistVec->second.end(); ++itr){
+        output += source;
+        output += itr->first;
+        output += to_string(itr->second);
+        output += " ";
+    }
+
+    return output;
 }
