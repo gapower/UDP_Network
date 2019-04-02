@@ -22,8 +22,9 @@ public:
     int getsendPort(std::string);
     int getreceivePort();
 
+    std::string getDistanceVector(std::string);
+
     struct link* findSendLink(std::string);
-    void clearRow(std::string);
 private:
     std::map< std::string, struct link > links;
     std::string hostname;
