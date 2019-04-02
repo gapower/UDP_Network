@@ -1,5 +1,4 @@
 #include "hostobj_Connected.h"
-#include "link.h"
 #include <string>
 #include <map>
 #include <iostream>
@@ -8,65 +7,42 @@ using namespace std;
 
 HostObj::HostObj(std::string name){
     hostname = name;
-    receiveport = name[0] + 9935;
+    receiveport = name[0] + 9935 ;// I guess 9935 refers to the minimum port of A(10001)?
     /*
     for(int i = 0; i < 6; i++)
         for(int j = 0; j < 6; j++)
             if(i == j)
                 fwdtable[i][j] = 0;             // Distance of zero from itself
             else
-                fwdtable[i][j] = 999999999;     // All other hosts are at infinity
-                */
+                fwdtable[i][j] = 999999999;     // All other hosts are at infinity*/
 
     map <string, int> newMap;
     newMap.insert(pair<string, int>(hostname, 0));
     fwdtable.insert(pair<string, map<string, int> >(hostname, newMap));
 }
 
-void HostObj::addLink(string dest, int port, int weight){
-    link newLink;
-    newLink.port = port;
-    newLink.weight = weight;
-    newLink.active = false;
-    // Maybe add a struct
 
-    links.insert(pair<string, link >(dest, newLink));
+
+void HostObj::addLink(string dest, int port, int weight){
+    links.insert(pair<string, pair<int, int> >(dest, pair<int, int>(port, weight)));
 
     //fwdtable[hostname[0] - 65][dest[0] - 65] = weight;
     //cout << "Inserting link " << dest << endl;
-
-    //fwdtable.find(hostname)->second.insert(pair<string, int>(dest, weight));
+    fwdtable.find(hostname)->second.insert(pair<string, int>(dest, weight));
 
     return;
 }
 
-void HostObj::activateNeighbour(string neighbour){
-    int weight;
 
-    if(links.find(neighbour) == links.end())
-      return;
 
-    links.find(neighbour)->second.active = true;
-    weight = links.find(neighbour)->second.weight;
-
-    fwdtable.find(hostname)->second.insert(pair<string, int>(neighbour, weight));
-}
-
-void HostObj::deleteNeighbour(string neighbour){
-    if(links.find(neighbour) == links.end())
-      return;
-
-    links.find(neighbour)->second.active = false;
-    fwdtable.erase(neighbour);
-}
 
 void HostObj::printLinks(){
-    map<string, link >::iterator itr;
+    map<string, pair<int, int> >::iterator itr;
 
     cout << "Here are the links associated with " << hostname << " at port " << receiveport << ":\n";
 
     for(itr = links.begin(); itr != links.end(); ++itr){
-        cout << "Dest = " << itr->first << " Port = " << itr->second.port << " Weight = " << itr->second.weight << "\n";
+        cout << "Dest = " << itr->first << " Port = " << itr->second.first << " Weight = " << itr->second.second << "\n";
     }
 
     return;
@@ -124,97 +100,46 @@ void HostObj::updateTable(std::string src, std::string dest, int newWeight){
     return;
 }
 
-void HostObj::regenTable(){
 
+
+
+
+void HostObj::reGenTable(){
     int cost;
-    bool change = true; // If the table updates, links involved in other calculations may have been changed and need to be updated
+    bool change; // If the table updates, links involved in other calculations may have been changed and need to be updated
 
-    map<string, struct link>::iterator itr1;
+    map<string, pair<int, int> >::iterator itr1;
     map<string, int>::iterator itr2;
-    map<string, int> hostTable;
+    map<string, int>* hostTable;
     map<string, int>* currTable;
 
-    fwdtable.erase(hostname);
-    hostTable.insert(pair<string, int> (hostname, 0));
+    hostTable = &fwdtable.find(hostname)->second;
 
-    // NEED TO REMODEL REGEN TABLE
-    // MUST HANDLE A LINK BEING REMOVED
-    // MUST REMOVE PATHS THAT USE A DEACTIVATED LINK
-    // AT THE MOMENT FUNCTION UPDATES THE TABLE EACH TIME, NEEDS TO COMPLETELY GENERATE THE TABLE
-    while(change){
-      change = false;
-      for(itr1 = links.begin(); itr1 != links.end(); ++itr1){   // For each link to the host
-        //cout << "Checking link " << itr1->first << endl;
-        if(itr1->second.active){   // If this link is active
-          if(hostTable.find(itr1->first) != hostTable.end())
-            cost = hostTable.find(itr1->first)->second;  // Grab lowest cost to this node
-          else
-            cost = links.find(itr1->first)->second.weight; // If there is no established link, refer to base link
-
-          //cout << "Cost to " << itr1->first << " is " << cost << endl;
-
-          if(fwdtable.find(itr1->first) != fwdtable.end()){
-            //cout << "Checking " << itr1->first << "'s links" << endl;
-            currTable = &fwdtable.find(itr1->first)->second;  // Analyse fwdtable of the current node
-
-            for(itr2 = currTable->begin(); itr2 != currTable->end(); ++itr2){ // Check all nodes the current node has connections to
-              //cout << itr1->first << " is connected to " << itr2->first << " with a weight of " << itr2->second << endl;
-              if(hostTable.find(itr2->first) == hostTable.end()){ // If the host node has no link to this destination
-                change = true;
-                //cout << "Adding " << itr2->first << " with weight " << cost + itr2->second << endl;
-                hostTable.insert(pair<string, int>(itr2->first, cost + itr2->second));  // Add a link through currNode
-              } else if(cost + itr2->second < hostTable.find(itr2->first)->second){  // If the path through currNode is cheaper
-                change = true;
-                //cout << hostTable.find(itr2->first)->first << " with weight " << hostTable.find(itr2->first)->second;
-                //cout << " is now ";
-                //cout << hostTable.find(itr2->first)->first << " with weight " << cost + itr2->second << endl;
-                hostTable.find(itr2->first)->second = cost + itr2->second;  // Set advertised path to path through currNode
-              }
-
-            }
-          } else {
-            // No entry for this node in the forward table
-            // This would indicate that a node is active, yet we have no path information
-            // Is this an error state?
-            //cout << endl << "ERROR SCENARIO" << endl;
-          }
-        }
-      }
-    }
-
-    fwdtable.insert(pair<string, map <string, int> > (hostname, hostTable));
-
-    return;
-/*
     do{
         change = false;
         for(itr1 = links.begin(); itr1 != links.end(); ++itr1){ // Set currNode as one of the hosts links
-            if(hostTable->find(itr1->first) != hostTable->end()){ // If the link has been activated
-              cost = hostTable->find(itr1->first)->second; // Cost is cost from host to currNode
-              cout << "Cost to " << itr1->first << " is " << cost << endl;
+            cost = hostTable->find(itr1->first)->second; // Cost is cost from host to currNode
+            //cout << "Cost to " << itr1->first << " is " << cost << endl;
+            if(fwdtable.find(itr1->first) != fwdtable.end()){
+                //cout << "Checking " << itr1->first << "'s links\n";
+                currTable = &fwdtable.find(itr1->first)->second; // Analyse fwdtable of currNode
 
-              if(fwdtable.find(itr1->first) != fwdtable.end()){
-                  cout << "Checking " << itr1->first << "'s links\n";
-                  currTable = &fwdtable.find(itr1->first)->second; // Analyse fwdtable of currNode
-
-                  for(itr2 = currTable->begin(); itr2 != currTable->end(); ++itr2){ // Check all nodes currNode is connected to
-                      cout << itr1->first << " is connected to " << itr2->first << " with a weight of " << itr2->second << endl;
-                      if(hostTable->find(itr2->first) == hostTable->end()){ // If the host has no link to this node
-                          change = true;
-                          cout << "Adding " << itr2->first << " with weight " << cost + itr2->second << endl;
-                          hostTable->insert(pair<string, int>(itr2->first, cost + itr2->second));  // Add a link through currNode
-                      } else if(cost + itr2->second < hostTable->find(itr2->first)->second){  // If the path through currNode is cheaper
-                          change = true;
-                          cout << hostTable->find(itr2->first)->first << " with weight " << hostTable->find(itr2->first)->second;
-                          cout << " is now ";
-                          cout << hostTable->find(itr2->first)->first << " with weight " << cost + itr2->second << endl;
-                          hostTable->find(itr2->first)->second = cost + itr2->second;  // Set advertised path to path through currNode
-                      }
-                  }
-              }
+                for(itr2 = currTable->begin(); itr2 != currTable->end(); ++itr2){ // Check all nodes currNode is connected to
+                    //cout << itr1->first << " is connected to " << itr2->first << " with a weight of " << itr2->second << endl;
+                    if(hostTable->find(itr2->first) == hostTable->end()){ // If the host has no link to this node
+                        change = true;
+                        //cout << "Adding " << itr2->first << " with weight " << cost + itr2->second << endl;
+                        hostTable->insert(pair<string, int>(itr2->first, cost + itr2->second));  // Add a link through currNode
+                    } else if(cost + itr2->second < hostTable->find(itr2->first)->second){  // If the path through currNode is cheaper
+                        change = true;
+                        //cout << hostTable->find(itr2->first)->first << " with weight " << hostTable->find(itr2->first)->second;
+                        //cout << " is now ";
+                        //cout << hostTable->find(itr2->first)->first << " with weight " << cost + itr2->second << endl;
+                        hostTable->find(itr2->first)->second = cost + itr2->second;  // Set advertised path to path through currNode
+                    }
+                }
             }
-        }*/
-
+        }
         /*
         for(int i = 0; i < 6; i++)
             if(i != hostname[0] - 65){
@@ -229,8 +154,9 @@ void HostObj::regenTable(){
                     }
 
             }*/
-   // } while (change);
+    } while (change);
 
+    return;
 }
 
 string HostObj::getHostname(){
@@ -238,27 +164,27 @@ string HostObj::getHostname(){
 }
 
 int HostObj::getWeight(string dest){
-    map<string, link >::iterator relevantLink = links.find(dest);
+    map<string, pair<int, int> >::iterator relevantLink = links.find(dest);
 
     if(relevantLink == links.end())
         return -1;
     else
-        return relevantLink->second.weight;
+        return relevantLink->second.second;
 }
 
 int HostObj::getsendPort(string dest){
-    map<string, link >::iterator relevantLink = links.find(dest);
+    map<string, pair<int, int> >::iterator relevantLink = links.find(dest);
 
     if(relevantLink == links.end())
         return -1;
     else
-        return relevantLink->second.port;
+        return relevantLink->second.first;
 }
 
 int HostObj::getreceivePort(){
     return receiveport;
 }
 
-std::map< std::string, link > HostObj::getLinks(){
+std::map< std::string, std::pair<int, int> > HostObj::getLinks(){
     return links;
 }
