@@ -337,7 +337,9 @@ int main(int argc, char* argv[])
         }
     }
 
-    
+    datafile.close();
+
+    // CONNECTION TESTING
     // Set up listening socket
     //Initialize the command-line arguments
     int myPort = thisHost.getreceivePort();
@@ -496,12 +498,15 @@ int main(int argc, char* argv[])
     }
 
 /*
-    // Simulate an update message
-    // What happens?
-    // Start table, ping.. ping.. ping..
-    // Recieve almost blank table from neighbour
-    // Update table, send update to neighbour
-    // Receive further updated table
+    // DISTANCE VECTOR TESTING
+    // Relevant HostObj Functions:
+    // clearRow()           When receiving an update message, must disregard previous information using this function
+    // activateNeighbour()  If a new neighbouring node comes online, implement it in fowarding table
+    // deleteNeighbour()    If a neighbouring node times out, remove it from the forwarding table
+    // updateTable()        Manual input into forwarding table
+    // regenTable()         Recalculates the distance vector of the host, should perform after a table update (active, delete, update)
+    // printTable()         Display the host's forwarding table in console
+    // findSendLink()       Given a destination, provides link pointer to best sending port. If none exist, pointer is NULL
 
     cout << endl;
     thisHost.printLinks();
@@ -550,6 +555,11 @@ int main(int argc, char* argv[])
       cout << "To send to router B, outgoing router is " << char(thisHost.findSendLink("B")->port - 9935) << endl;
     else cout << "No passage to B" << endl;
 
+    cout << endl << "SEND PACKET TO ROUTER C" << endl;
+    if(thisHost.findSendLink("C") != NULL)
+      cout << "To send to router C, outgoing router is " << char(thisHost.findSendLink("C")->port - 9935) << endl;
+    else cout << "No passage to C" << endl;
+
     cout << endl << "SEND PACKET TO ROUTER D" << endl;
     if(thisHost.findSendLink("D") != NULL)
       cout << "To send to router D, outgoing router is " << char(thisHost.findSendLink("C")->port - 9935) << endl;
@@ -563,10 +573,25 @@ int main(int argc, char* argv[])
     thisHost.regenTable();
     thisHost.printTable();
 
+    cout << endl << "NODE C HAS CRASHED" << endl;
+    thisHost.clearRow("B");
+    thisHost.updateTable("B","A", 4);
+    thisHost.updateTable("B","F", 1);
+    thisHost.printTable();
+
+    cout << endl << "RECALCULATE DISTANCE VECTORS" << endl;
+    thisHost.regenTable();
+    thisHost.printTable();
+
     cout << endl << "SEND PACKET TO ROUTER A" << endl;
     if(thisHost.findSendLink("A") != NULL)
       cout << "To send to router A, outgoing router is " << char(thisHost.findSendLink("A")->port - 9935) << endl;
     else cout << "No passage to A" << endl;
+
+    cout << endl << "SEND PACKET TO ROUTER C" << endl;
+    if(thisHost.findSendLink("C") != NULL)
+      cout << "To send to router C, outgoing router is " << char(thisHost.findSendLink("C")->port - 9935) << endl;
+    else cout << "No passage to C" << endl;
 
     cout << endl << "SEND PACKET TO ROUTER E" << endl;
     if(thisHost.findSendLink("E") != NULL)
@@ -574,8 +599,7 @@ int main(int argc, char* argv[])
     else cout << "No passage to E" << endl;
 
     cout << endl << "Distance Vector for F is: " << thisHost.getDistanceVector("F") << endl;
-
-    datafile.close();
 */
+
 	return 0;
 }
