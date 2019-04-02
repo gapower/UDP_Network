@@ -391,54 +391,107 @@ int main(int argc, char* argv[])
 
 // SELECT STATEMENT ATTEMPT
 
-/*
+
     struct timeval myTime;
     int n, numSockets;
     socklen_t len;
     
-    myTime.tv_sec = 0;
-    myTime.tv_usec = 500000;
+    myTime.tv_sec = 5;
+    myTime.tv_usec = 0;
 
     fd_set rfds;
     fd_set wfds;
+    fd_set erfds;
+
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
+    FD_ZERO(&erfds);
 
     int maxSockfd = sockfd;
 
-    FD_SET(sockfd, &rfds);
     FD_SET(sockfd, &wfds);
+
+    int clock = 0;
+    bool send = true;
+
+    string RouterChar = argv[1];
+    string m = "Router " + RouterChar;
+    const char* message = m.c_str();
 
     while(true){
         rfds = wfds;
-        
-        if(select(maxSockfd + 1, &rfds, &wfds, NULL, &myTime) < 0) {
+        erfds = wfds;
+        numSockets = 0;
+
+        //if(send){
+  //          if(FD_ISSET(sockfd, &wfds)){
+    //            for(itr = links.begin(); itr != links.end(); ++itr){
+      //              sendto(sockfd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address,  sizeof(itr->second.address));
+       //         } 
+        //    }
+            //send = false;
+        //}
+
+    //    if(FD_ISSET(sockfd, &rfds)){
+            // Put message parsing here
+    //        n = recvfrom(sockfd, buffer, MAXBUF, 0, ( struct sockaddr *) &nodeAddr, &len);
+     //       buffer[n] = '\0';
+     //       cout << "Node: ";
+      //      for(int i = 0; i < n; i++){
+        //        cout << buffer[i];
+        //    }
+         //   cout << endl;
+        //}
+
+        if((numSockets = select(maxSockfd + 1, &rfds, NULL, NULL, &myTime)) < 0) {
             perror("select");
             return -1;
         }
+        cout << "numSockets = " << numSockets << endl;
+        if(numSockets == 0){
 
-        if(FD_ISSET(sockfd, &rfds)){
-            n = recvfrom(sockfd, buffer, MAXBUF, 0, ( struct sockaddr *) &nodeAddr, &len);
-            buffer[n] = '\0';
-            cout << "Node: ";
-            for(int i = 0; i < n; i++){
-                cout << buffer[i];
+            //myTime.tv_sec = 5;
+
+            for(itr = links.begin(); itr != links.end(); ++itr){
+                if(itr->second.active)
+                    itr->second.lifetime -= 5;
+
+                if(itr->second.lifetime < 0)
+                    thisHost.deleteNeighbour(itr->first);
+
             }
-            cout << endl;
+
+            send = true;
         }
-        string RouterChar = argv[1];
-        string m = "Router " + RouterChar;
-        const char* message = m.c_str();
+        else{
+
+                
+
         
-        if(FD_ISSET(sockfd, &wfds)){
-            for(itrAddr = linkedAddrs.begin(); itrAddr != linkedAddrs.end(); ++itrAddr){
-
-                sendto(sockfd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itrAddr->second,  sizeof(itrAddr->second));
-
-            }   
+            for(int fd = 0; fd <= maxSockfd; fd++){
+                // In theory we have 1 reading socket
+                if(FD_ISSET(fd, &rfds)){
+                    // Put message parsing here
+                    n = recvfrom(fd, buffer, MAXBUF, 0, ( struct sockaddr *) &nodeAddr, &len);
+                    buffer[n] = '\0';
+                    cout << "Node: ";
+                    for(int i = 0; i < n; i++){
+                        cout << buffer[i];
+                    }
+                    cout << endl;
+                }
+                
+                if(send){
+                    if(FD_ISSET(fd, &wfds)){
+                        for(itr = links.begin(); itr != links.end(); ++itr){
+                            sendto(fd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address,  sizeof(itr->second.address));
+                        } 
+                    }
+                    send = false;
+                }
+            }
         }
     }
-*/
 
 
 
@@ -446,11 +499,7 @@ int main(int argc, char* argv[])
 
 
 
-
-
-
-
-
+/*
 
     int command = 0;
 
@@ -496,6 +545,9 @@ int main(int argc, char* argv[])
         }
 
     }
+
+*/
+
 
 /*
     // DISTANCE VECTOR TESTING

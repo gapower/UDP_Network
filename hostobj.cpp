@@ -338,5 +338,8 @@ string HostObj::getDistanceVector(string source){
         output += " ";
     }
 
+    output = output.substr(0, output.length() - 1);
+    output += "\n";
+
     return output;
 }
