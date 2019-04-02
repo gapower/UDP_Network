@@ -22,6 +22,99 @@
 //More testing by Peter...
 using namespace std;
 
+string constructString(string this_host){
+      string temp;
+      string finalString;
+      bool dv = false;
+      cout << "Constructing Message to send...\n";
+      cout << "Is this a Distance Vector? (yes/no)";
+      getline(cin,temp);
+      if (temp=="yes"){
+        dv = true;
+        temp="dv";
+      }
+
+      finalString += "type:";
+      finalString += temp;
+      finalString += "\n";
+      temp = this_host;
+      finalString += "src:";
+      finalString += temp;//add source, senderName
+      finalString += "\n"; //While testing, these didnt make sense, I think because there ended up being two \n s
+
+      if(dv)
+        cout << "please enter the distance vectors that\nyou would like to update in the form AB1 separated by a space:";
+      else
+        cout << "Please enter the string that you would like to send";
+
+      getline(cin,temp);
+      if(temp=="a")
+      temp = "AB1 AB2 AB3 AB5";
+      finalString += "data:";
+      finalString += temp;
+      //finalString += "\n";
+
+
+
+      return finalString;
+
+}
+
+void messageReceived(string input){
+    int point1,point2,requiredLength;
+    string temp,subString,tempInput;
+    bool dv = false;
+    string sourceNode;
+
+
+    tempInput = input;
+
+    int stringlength=tempInput.length();
+
+    temp= "type:";
+    point1=tempInput.find(temp);
+    point1=point1+temp.length();
+    point2=tempInput.find("\n");
+
+    subString=tempInput.substr(point1,point2-point1);
+    cout << "Type(yes or no): " << subString << endl;
+
+    if(subString== "yes")
+      dv=true;
+
+    stringlength -= point2;
+
+    tempInput = input.substr(point2+1,stringlength);
+
+    temp= "src:";
+    point1=tempInput.find(temp);
+    point1=point1+temp.length();
+    point2=tempInput.find("\n");
+
+    subString=tempInput.substr(point1,point2-point1);
+
+    cout << "Source node: "<< subString << endl;
+
+    stringlength -= point2;
+
+    tempInput = input.substr(point2+1,stringlength);
+
+
+    temp= "data:";
+    point1=tempInput.find(temp);
+    point1=point1+temp.length();
+    point2=tempInput.find("\n");
+
+    subString=tempInput.substr(point1,point2-point1);
+
+    cout << "Data: " << subString << endl;
+
+
+
+}
+
+
+//MAIN//
 int main(int argc, char* argv[])
 {
     if(argc != 2){
@@ -462,16 +555,18 @@ int main(int argc, char* argv[])
                     buffer[n] = '\0';
 
                     //Need code that parses the incoming messages and follows standards to deal with the messages
+                    string receivedString(buffer);
+                    //messageReceived(receivedString);
 
-
-
-                    cout << "Node: ";
+                    messageReceived(receivedString);
+                    //cout << "Node: ";
+                    /*
                     for(int i = 0; i < n; i++){
                         cout << buffer[i];
 
                     }
                         cout << endl;
-
+                          */
 
 
                 }
@@ -506,6 +601,7 @@ int main(int argc, char* argv[])
 
                     }
                     else{
+                      /*
                       cout << "Enter the message that you wish to send: ";
                       getline(cin,stringToSend);
                       cout << "stringToSend: " << stringToSend << "\n";
@@ -513,10 +609,10 @@ int main(int argc, char* argv[])
                       cMessage = stringToSend.c_str();
 
                       cout << "cMessage: " << cMessage <<"\n";
-
+                      */
                       //I would like to test sending to specific port,
-
-
+                      stringToSend = constructString(thisHost.getHostname());
+                      cMessage = stringToSend.c_str();
                       //for(itrAddr = linkedAddrs.begin(); itrAddr != linkedAddrs.end(); ++itrAddr){
 
                           sendto(sockfd, (const char *)cMessage, strlen(cMessage), 0, (const struct sockaddr *) &itrAddr->second,  sizeof(itrAddr->second));
@@ -526,7 +622,7 @@ int main(int argc, char* argv[])
                   }
 
                 }
-                else if(commandNumber== 2)
+                else if(commandNumber== 3)
                 break;
 
 
@@ -544,21 +640,87 @@ int main(int argc, char* argv[])
 
 
         UDP message
+
         string Sender
-        int senderPortNumber
+        //int senderPortNumber
         string messageType; ("DV" or "DATA")
         optional:
         string data
         string destinationNode;
-        int weight;
+        string weight;
+
+        string messageObj (string messageType,string Sender, string data){
+          if (messageType == "DV")
+      }
+
+
+
+
+
+      void messageReceived(string input){
+      int point1,point2,requiredLength;
+      string temp,subString,tempInput;
+      bool dv = false;
+      string sourceNode;
+
+
+      tempInput = input;
+
+      int stringlength=tempInput.length();
+
+      temp= "type:";
+      point1=tempInput.find(temp);
+      point1=point1+temp.length();
+      point2=tempInput.find("\n")
+
+      subString=tempInput.substr(point1,point2-point1);
+      cout << "Type(yes or no): " << subString << endl;
+
+      if subString = "yes"
+        dv=true;
+
+      stringlength -= point2;
+
+      tempInput = input.substr(point2+1,stringlength);
+
+      temp= "src:";
+      point1=tempInput.find(temp);
+      point1=point1+temp.length();
+      point2=tempInput.find("\n")
+
+      subString=tempInput.substr(point1,point2-point1);
+
+      cout << "Source node: "<< subString << endl;
+
+      stringlength -= point2;
+
+      tempInput = input.substr(point2+1,stringlength);
+
+
+      temp= "data:";
+      point1=tempInput.find(temp);
+      point1=point1+temp.length();
+      point2=tempInput.find("\n")
+
+      subString=tempInput.substr(point1,point2-point1);
+
+      cout << "Data: " << subString << endl;
+
+
+
+    }
+
+
+      find()///The position of the first character of the first match.
 
 
 
         upon receipt of a dv message print time to console
 
 
+        //fucntion that will send fwding table to all neighbours.. so it can be called periodically
 
-
+        string.substr(starting number location, plus this many characters);
 
     cout << endl;
     thisHost.printLinks();
