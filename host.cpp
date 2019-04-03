@@ -380,13 +380,13 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
-    std::map< std::string, struct link > links = thisHost.getLinks();
+    std::map< std::string, struct link >* links = thisHost.getLinks();
     map< std::string, struct link >::iterator itr;
 
     struct sockaddr_in nodeAddr;
 
     // initialising neighbouring port addresses
-    for(itr = links.begin(); itr != links.end(); ++itr){
+    for(itr = links->begin(); itr != links->end(); ++itr){
         memset(&nodeAddr, 0, sizeof(nodeAddr));
 
         nodeAddr.sin_family = AF_INET;
@@ -421,7 +421,7 @@ int main(int argc, char* argv[])
     FD_SET(sockfd, &wfds);
 
     string RouterChar = argv[1];
-    string m = "type:dv\nsrc:" + RouterChar+ "\ndata:hello";
+    string m = "type:dv\nsrc:" + RouterChar+ "\ndata:" + thisHost.getDistanceVector(RouterChar);
     const char* message = m.c_str();
 
     while(true){
@@ -438,12 +438,12 @@ int main(int argc, char* argv[])
             myTime.tv_sec = 5;
 
             for(int fd = 0; fd <= maxSockfd; fd++){
-                for(itr = links.begin(); itr != links.end(); ++itr){
+                for(itr = links->begin(); itr != links->end(); ++itr){
                     sendto(fd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address,  sizeof(itr->second.address));
                 } 
             }
 
-            for(itr = links.begin(); itr != links.end(); ++itr){
+            for(itr = links->begin(); itr != links->end(); ++itr){
 
                 if(itr->second.active){
 
@@ -470,22 +470,23 @@ int main(int argc, char* argv[])
                         
                     int marker = input.find(temp);
                     char source = buffer[marker+temp.length()];
+                    string src (1, source);
 
                     DistinguishPacket(buffer, n);
 
-                    for(itr = links.begin(); itr != links.end(); ++itr){
+                    for(itr = links->begin(); itr != links->end(); ++itr){
 
                         if(!(itr->second.active)){
 
-                            if((itr->second.port - 9935) == source){
+                            if((itr->first) == src){
 
                                 cout << endl << "Detected Router " << source << " as active" << endl << endl;
 
-                                string src (1, source);
+                                
                                 thisHost.activateNeighbour(src);
 
-                                if(itr->second.active)
-                                    cout << "Active in main" << endl;
+                                //if(itr->second.active)
+                                //    cout << "Active in main" << endl;
 
                                 //itr->second.active = true;
                                 //itr->second.lifetime = 15;

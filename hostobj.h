@@ -9,7 +9,7 @@ public:
 
     void addLink(std::string, int, int);
     void printLinks();
-    std::map< std::string, struct link > getLinks();
+    std::map< std::string, struct link >* getLinks();
 
     void printTable();
     void updateTable(std::string, std::string, int);
