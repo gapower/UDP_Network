@@ -21,9 +21,161 @@
 
 using namespace std;
 
+
+string constructString(HostObj this_host){
+      string temp;
+      string finalString;
+      bool dv = true;
+      cout << "Constructing Message to send...\n";
+      cout << "Is this a Distance Vector? (yes/no) ";
+      getline(cin,temp);
+      if (temp=="no"){
+        dv = false;
+        temp="data";
+      }
+      else
+        temp ="dv";
+
+      finalString += "type:";
+      finalString += temp;
+      finalString += "\n";
+      temp = this_host.getHostname();
+      finalString += "src:";
+      finalString += temp;//add source, senderName
+      finalString += "\n"; //While testing, these didnt make sense, I think because there ended up being two \n s
+
+      if(dv)
+        cout << "please enter the distance vectors that\nyou would like to update in the form AB1 separated by a space:";
+      else
+        cout << "Please enter the string that you would like to send";
+
+      /*
+      getline(cin,temp);
+      if(temp=="a")
+      temp = "AB1 AB2 AB3 AB5";
+      finalString += "data:";
+      finalString += temp;
+      finalString += "\n"; //needed?
+      */
+      finalString += "data:";
+      temp=this_host.getDistanceVector(this_host.getHostname());//seems unneessary to have to include the string as an arg
+      cout << temp ;
+      finalString += temp;
+
+      return finalString;
+
+}
+
+
+
+void messageReceived(HostObj host, string input){
+
+
+  //  cout <<input << endl ;
+
+    int point1,point2,requiredLength;
+    string temp,subString,tempInput;
+    bool dv = false;
+    string sourceNode;
+
+
+    tempInput = input;
+
+
+    int stringlength=tempInput.length();
+
+    temp= "type:";
+    point1=tempInput.find(temp);
+    point1=point1+temp.length();
+    point2=tempInput.find("\n");
+
+    subString=tempInput.substr(point1,point2-point1);
+
+    cout << "Type(dv or data): " << subString << endl;
+
+    if(subString== "dv")
+      dv=true;
+
+    stringlength -= point2;
+
+    tempInput = tempInput.substr(point2+1,stringlength);
+
+    temp= "src:";
+    point1=tempInput.find(temp);
+    point1=point1+temp.length();
+    point2=tempInput.find("\n");
+
+    subString=tempInput.substr(point1,point2-point1);
+
+    cout << "Source node: "<< subString << endl;
+    sourceNode = subString;
+    stringlength -= point2;
+
+    tempInput = tempInput.substr(point2+1,stringlength);
+
+
+    temp= "data:";
+    point1=tempInput.find(temp);
+    point1=point1+temp.length();
+    point2=tempInput.find("\n");
+
+    subString=tempInput.substr(point1,point2-point1);
+
+    //Let's deal with some incoming DV
+    if(dv){
+
+      // At this stage subString will hold a list of DVs in the form AB1 AE4
+      int subStringLength = subString.length();
+      string tempDV;
+      int counter = 0;
+      //point1 = subString.find(sourceNode);
+      //point2 = subString.find(" ");// Find function returns -1 if not found
+
+
+
+      while(point2!=-1){
+        point1 = subString.find(sourceNode);
+        point2 = subString.find(" ");
+        counter ++;
+
+        tempDV = subString.substr(point1,point2-point1);//tempDV will hol
+        int weight = stoi(string(1,tempDV[2])); // get weight from third character of DV
+        host.updateTable(string(1,tempDV[0]),string(1,tempDV[1]),weight);
+
+        //cout << counter << ": " << tempDV << endl;
+        /*
+        for(int i=0;i<3;i++){
+          cout << tempDV[i] << endl ;
+        }
+        */
+        subStringLength-=point2;
+
+        subString = subString.substr(point2+1,stringlength);
+
+
+          //need to update subString
+
+        }
+
+        host.printTable();
+
+    }
+
+
+    else
+    cout << "Data: " << subString << endl;
+
+
+
+}
+
+
+
+
 void sendPacket(int myPort);
 
 void DistinguishPacket(char buffer[], int n);
+
 
 int main(int argc, char* argv[])
 {
@@ -399,12 +551,18 @@ int main(int argc, char* argv[])
         itr->second.address = nodeAddr;
     }
 
+
+    //
+    thisHost.printTable();
+
 // SELECT STATEMENT ATTEMPT
 
     struct timeval myTime;
     int n, numSockets;
     socklen_t len;
-    
+
+
+   
     myTime.tv_sec = 5;
     myTime.tv_usec = 0;
 
@@ -426,10 +584,12 @@ int main(int argc, char* argv[])
 
     while(true){
         rfds = wfds;
+
         erfds = wfds;
         numSockets = 0;
 
         if((numSockets = select(maxSockfd + 1, &rfds, NULL, NULL, &myTime)) < 0) {
+
             perror("select");
             return -1;
         }
@@ -443,7 +603,9 @@ int main(int argc, char* argv[])
                 } 
             }
 
+
             for(itr = links->begin(); itr != links->end(); ++itr){
+
 
                 if(itr->second.active){
 
@@ -457,6 +619,7 @@ int main(int argc, char* argv[])
 
                     }
                 }
+
             }
         }
         else{
@@ -491,12 +654,16 @@ int main(int argc, char* argv[])
                                 //itr->second.active = true;
                                 //itr->second.lifetime = 15;
 
+
+    
+
                                 sendto(fd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address, sizeof(itr->second.address));
                             }
                             
                         }
                         
                         if((itr->second.active)){
+
 
                             if((itr->second.port - 9935) == source){
 
@@ -523,51 +690,136 @@ int main(int argc, char* argv[])
 
 
 /*
-
+  
+  string command;
+    int commandNumber = 0;
+    int runtimes = 0;
     int command = 0;
 
-    while(command != 3){
-
-        cout << endl << "[1] LISTEN " << endl << "[2] SEND MESSAGE " << endl << "[3] EXIT ";
-        cin >> command;
-
-        int n;
-        socklen_t len;
-        //Node is set to LISTEN for incoming messages
-        if (command == 1){
-
-            cout << "Listening on port " << argv[1] << "... " << endl;
-
-            n = recvfrom(sockfd, buffer, MAXBUF, 0, ( struct sockaddr *) &nodeAddr, &len);
-            buffer[n] = '\0';
-            cout << "Node: ";
-            for(int i = 0; i < n; i++){
-
-                cout << buffer[i];
-
-            }
-                cout << endl;
-
-        }
-        if(command == 2){
-
-            string m;
-            const char* message;
-
-            cout << "Enter the message that you wish to send: ";
-            cin >> m;
-            message = m.c_str();
-
-            for(itr = links.begin(); itr != links.end(); ++itr){
-
-                sendto(sockfd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address,  sizeof(itr->second.address));
-
-            }
 
 
-        }
+     cout << endl << "[1] LISTENER " << endl << "[2] SENDER " << endl << "[3] EXIT ";
+     bool validCommand = false;
 
-    }
+
+
+     while (!validCommand){
+       getline (cin,command);//Will try use getline as often as possible instead of cin >>
+       if(command.length()>1)
+         cout<< "Not a valid command, re-enter: ";
+       else
+         validCommand = true;
+     }
+
+
+     commandNumber = atoi(command.c_str());
+
+
+
+
+
+
+
+    while (runtimes<5){
+
+
+
+
+
+
+
+                int n;
+                socklen_t len;
+                //Node is set to LISTEN for incoming messages
+                if (commandNumber== 1){
+
+                    cout << "Listening on port " << argv[1] << "... " << endl;
+
+                    n = recvfrom(sockfd, buffer, MAXBUF, 0, ( struct sockaddr *) &nodeAddr, &len);
+                    buffer[n] = '\0';
+
+                    //Need code that parses the incoming messages and follows standards to deal with the messages
+                    string receivedString(buffer);
+                    //messageReceived(receivedString);
+
+                    messageReceived(thisHost,receivedString);
+                    //cout << "Node: ";
+                    /*
+                    for(int i = 0; i < n; i++){
+                        cout << buffer[i];
+
+                    }
+                        cout << endl;
+                          */
+
+
+                }
+
+                else if(commandNumber== 2){
+
+                    string stringToSend;
+                    const char* cMessage;
+
+                    string desiredPort;
+
+                    cout << "Enter the host name you'd like to contact: ";
+                    getline(cin,desiredPort);
+
+                    //looptofind desiredPort
+                    bool desiredHostFound = false;
+                    itr = links.begin();
+                    while(itr!= links.end()&& !desiredHostFound){
+
+                        if((itr->first) == desiredPort){
+                          cout << "Host " << itr->first << " found succesfully.\n";
+                          desiredHostFound=true;
+                        }
+                        else {
+                          ++itr;
+                        }
+
+                    }
+
+                    if(!desiredHostFound){
+                      cout << "Failed to find Host " << desiredPort<< " .\n";
+
+                    }
+                    else{
+                      /*
+                      cout << "Enter the message that you wish to send: ";
+                      getline(cin,stringToSend);
+                      cout << "stringToSend: " << stringToSend << "\n";
+
+                      cMessage = stringToSend.c_str();
+
+                      cout << "cMessage: " << cMessage <<"\n";
+                      */
+                      //I would like to test sending to specific port,
+                      stringToSend = constructString(thisHost);
+                      cMessage = stringToSend.c_str();
+                      //for(itrAddr = linkedAddrs.begin(); itrAddr != linkedAddrs.end(); ++itrAddr){
+
+                          sendto(sockfd, (const char *)cMessage, strlen(cMessage), 0, (const struct sockaddr *) &itr->second.address,  sizeof(itr->second.address));
+
+                      //}
+
+                  }
+
+                }
+                else if(commandNumber== 3)
+                break;
+
+
+      //  runtimes++;
+  }//End of running process
+
+
+
+
+
+
+
+
 
 */
 

@@ -1,3 +1,4 @@
+
 #include "hostobj.h"
 #include "link.h"
 #include <string>
@@ -352,3 +353,4 @@ string HostObj::getDistanceVector(string source){
 
     return output;
 }
+
