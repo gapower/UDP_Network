@@ -1,5 +1,6 @@
 #pragma once
 #include <netinet/in.h>
+#include <string>
 
 struct link{
 public:

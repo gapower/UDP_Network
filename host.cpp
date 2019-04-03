@@ -21,11 +21,24 @@
 
 using namespace std;
 
+void sendPacket(int myPort);
+
+void DistinguishPacket(char buffer[], int n);
+
 int main(int argc, char* argv[])
 {
     if(argc != 2){
         cout << "Incorrect arguments" << endl;
         return 0;
+    }
+
+    
+    if(0){
+
+        sendPacket((atoi(argv[1]) + 9935));
+
+        return 0;
+
     }
 
     fstream datafile;
@@ -367,13 +380,13 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
-    std::map< std::string, struct link > links = thisHost.getLinks();
+    std::map< std::string, struct link >* links = thisHost.getLinks();
     map< std::string, struct link >::iterator itr;
 
     struct sockaddr_in nodeAddr;
 
     // initialising neighbouring port addresses
-    for(itr = links.begin(); itr != links.end(); ++itr){
+    for(itr = links->begin(); itr != links->end(); ++itr){
         memset(&nodeAddr, 0, sizeof(nodeAddr));
 
         nodeAddr.sin_family = AF_INET;
@@ -386,59 +399,122 @@ int main(int argc, char* argv[])
         itr->second.address = nodeAddr;
     }
 
-
-
-
 // SELECT STATEMENT ATTEMPT
 
-/*
     struct timeval myTime;
     int n, numSockets;
     socklen_t len;
     
-    myTime.tv_sec = 0;
-    myTime.tv_usec = 500000;
+    myTime.tv_sec = 5;
+    myTime.tv_usec = 0;
 
     fd_set rfds;
     fd_set wfds;
+    fd_set erfds;
+
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
+    FD_ZERO(&erfds);
 
     int maxSockfd = sockfd;
 
-    FD_SET(sockfd, &rfds);
     FD_SET(sockfd, &wfds);
+
+    string RouterChar = argv[1];
+    string m = "type:dv\nsrc:" + RouterChar+ "\ndata:" + thisHost.getDistanceVector(RouterChar);
+    const char* message = m.c_str();
 
     while(true){
         rfds = wfds;
-        
-        if(select(maxSockfd + 1, &rfds, &wfds, NULL, &myTime) < 0) {
+        erfds = wfds;
+        numSockets = 0;
+
+        if((numSockets = select(maxSockfd + 1, &rfds, NULL, NULL, &myTime)) < 0) {
             perror("select");
             return -1;
         }
+        if(numSockets == 0){
 
-        if(FD_ISSET(sockfd, &rfds)){
-            n = recvfrom(sockfd, buffer, MAXBUF, 0, ( struct sockaddr *) &nodeAddr, &len);
-            buffer[n] = '\0';
-            cout << "Node: ";
-            for(int i = 0; i < n; i++){
-                cout << buffer[i];
+            myTime.tv_sec = 5;
+
+            for(int fd = 0; fd <= maxSockfd; fd++){
+                for(itr = links->begin(); itr != links->end(); ++itr){
+                    sendto(fd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address,  sizeof(itr->second.address));
+                } 
             }
-            cout << endl;
+
+            for(itr = links->begin(); itr != links->end(); ++itr){
+
+                if(itr->second.active){
+
+                    itr->second.lifetime -= 5;
+
+                    if(itr->second.lifetime < 0){
+
+                        char temp = (itr->second.port - 9935);
+                        cout << "Detected Router " << temp << " as INACTIVE" << endl << endl;
+                        itr->second.active = false;
+
+                    }
+                }
+            }
         }
-        string RouterChar = argv[1];
-        string m = "Router " + RouterChar;
-        const char* message = m.c_str();
-        
-        if(FD_ISSET(sockfd, &wfds)){
-            for(itrAddr = linkedAddrs.begin(); itrAddr != linkedAddrs.end(); ++itrAddr){
+        else{
+            for(int fd = 0; fd <= maxSockfd; fd++){
+                if((n = recvfrom(fd, buffer, MAXBUF, 0, ( struct sockaddr *) &nodeAddr, &len)) > 0){
 
-                sendto(sockfd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itrAddr->second,  sizeof(itrAddr->second));
+                    buffer[n] = '\0';
 
-            }   
+                    string input = string(buffer);
+                    string temp = "src:";
+                        
+                    int marker = input.find(temp);
+                    char source = buffer[marker+temp.length()];
+                    string src (1, source);
+
+                    DistinguishPacket(buffer, n);
+
+                    for(itr = links->begin(); itr != links->end(); ++itr){
+
+                        if(!(itr->second.active)){
+
+                            if((itr->first) == src){
+
+                                cout << endl << "Detected Router " << source << " as active" << endl << endl;
+
+                                
+                                thisHost.activateNeighbour(src);
+
+                                //if(itr->second.active)
+                                //    cout << "Active in main" << endl;
+
+                                //itr->second.active = true;
+                                //itr->second.lifetime = 15;
+
+                                sendto(fd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address, sizeof(itr->second.address));
+                            }
+                            
+                        }
+                        
+                        if((itr->second.active)){
+
+                            if((itr->second.port - 9935) == source){
+
+                                itr->second.lifetime = 15;
+
+                            }
+
+                        }
+                    }
+                    cout << "MESSAGE\n";
+                    for(int i = 0; i < n; i++){
+                        cout << buffer[i];
+                    }
+                    cout << endl << endl;
+                }
+            }
         }
     }
-*/
 
 
 
@@ -446,11 +522,7 @@ int main(int argc, char* argv[])
 
 
 
-
-
-
-
-
+/*
 
     int command = 0;
 
@@ -496,6 +568,9 @@ int main(int argc, char* argv[])
         }
 
     }
+
+*/
+
 
 /*
     // DISTANCE VECTOR TESTING
@@ -602,4 +677,79 @@ int main(int argc, char* argv[])
 */
 
 	return 0;
+}
+
+void sendPacket(int myPort){
+
+    int NodePort = 10000;
+    char m[MAXBUF];
+    char *message;
+    fstream packet;
+    packet.open("packet.txt", ios::in);
+    if (packet.is_open()){
+        int i = 0;                                                                                                                    
+        while (!packet.eof()){
+
+            m[i] = packet.get();
+            i++;
+        }
+        //close the file and return 200 OK                                                                                                                                                          
+        packet.close();
+    }
+    message = &m[0];
+
+    //Initialize other variables
+    int sockfd; 
+    //Socket addresses for THIS node and the node we wish to connect to
+    struct sockaddr_in myAddr, nodeAddr; 
+    //Create socket
+    if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
+        perror("Failed to create socket"); 
+        exit(EXIT_FAILURE); 
+    } 
+    //(I think this sets the addresses to 0)
+    memset(&myAddr, 0, sizeof(myAddr)); 
+    memset(&nodeAddr, 0, sizeof(nodeAddr)); 
+    //Information of MY node
+    myAddr.sin_family    = AF_INET; // IPv4 
+    myAddr.sin_addr.s_addr = htonl(INADDR_ANY); 
+    myAddr.sin_port = htons(myPort); 
+    // Bind the socket with MY NODE's address 
+    if ( bind(sockfd, (const struct sockaddr *)&myAddr, sizeof(myAddr)) < 0 ){ 
+        perror("Bind failed"); 
+        exit(EXIT_FAILURE); 
+    }
+    //Information of the node we wish to connect to
+    nodeAddr.sin_family = AF_INET;
+    nodeAddr.sin_port = htons(NodePort);
+    if (inet_aton("127.0.0.1", &nodeAddr.sin_addr) == 0){
+        fprintf(stderr, "Error when using 'inet_aton()'\n");
+        exit(1);
+    }
+
+    int n; 
+    socklen_t len;
+
+    sendto(sockfd, (char *)message, strlen(message), 0, (const struct sockaddr *) &nodeAddr,  sizeof(nodeAddr));
+}
+
+void DistinguishPacket(char buffer[], int n){
+
+    string input = string(buffer);
+    string temp = "type:";
+        
+    int marker = input.find(temp);
+    char type = buffer[marker+temp.length()];
+
+    if(type == 'p'){
+
+        //sendpacket(buffer);
+
+    }
+
+    else{
+
+        //distanceVector(buffer);
+
+    }
 }
