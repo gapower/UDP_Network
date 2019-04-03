@@ -21,49 +21,55 @@
 
 using namespace std;
 
-
+// CONSTRUCT STRING FUNCTION, CREATES THE MESSAGE SENT
 string constructString(HostObj this_host, int messageType){
-      string temp;
-      string finalString;
-      bool dv = true;
+    string finalString;
 
-
-
-      if(messageType==1){//this is distance vector
+    if(messageType==1){         // Message type 1 indicates a DV message
         finalString += "type:dv\nsrc:";
         finalString += this_host.getHostname();
         finalString += "\ndata:";
         finalString += this_host.getDistanceVector(this_host.getHostname());
-      }
-      else{
+    }
+    else{                       // Other messages types are to be coded
         finalString += "type:msg\nsrc:";
         finalString += this_host.getHostname();
         finalString += "\ndata:";
         finalString += this_host.getDistanceVector(this_host.getHostname());
         finalString += "dest:";
-      }
+    }
 
-      return finalString;
+    //cout << "SENDING" << endl << finalString << endl;
+    return finalString;
 
 }
 
 
-
+// MESSAGE RECEIVED FUNCTION, INTERPRETS AN INCOMING MESSAGE
 void messageReceived(HostObj *this_host, string input){
 
-  cout << "Input:" << input << endl;
+    //cout << "INPUT" << endl << input << endl;
 
-    int point1,point2,requiredLength;
-    string temp,subString,tempInput;
-    bool dv = false;
-    string type,sourceNode;
+    // Maintains coordinates of characters in strings
+    int point1, point2;
 
+    // Track length of strings
+    int stringLength, subStringLength;
+
+    // temp holds holds flags which we search for in the string
+    // tempInput holds the to be uncoded parts of the message
+    string temp, tempInput;
+
+    // These variables hold isolated message parameters
+    string type, sourceNode, subString, tempDV;
+    int weight;
 
     tempInput = input;
 
+    // Keep track of the length of the message
+    stringlength = tempInput.length();
 
-    int stringlength=tempInput.length();
-    //Checking whether it is receiving a distance vector or not
+    //Checking the type of message sent
     temp= "type:";
     point1=tempInput.find(temp);
     point1=point1+temp.length();
@@ -71,120 +77,134 @@ void messageReceived(HostObj *this_host, string input){
 
     type=tempInput.substr(point1,point2-point1);
 
-    //cout << "Type(dv or data): " << subString << endl;
-
-
-cout << "1" << endl;
-
-
     stringlength -= point2;
+    tempInput = tempInput.substr(point2 + 1,stringlength);
 
-    tempInput = tempInput.substr(point2+1,stringlength);
-
+    // Checking which node sent the message
     temp= "src:";
     point1=tempInput.find(temp);
     point1=point1+temp.length();
     point2=tempInput.find("\n");
 
     sourceNode=tempInput.substr(point1,point2-point1);
-    cout << "SourceNode:" << sourceNode << endl;
-    cout << this_host->getDistanceVector(sourceNode) << endl;
+
     stringlength -= point2;
-    tempInput = tempInput.substr(point2+1,stringlength);
+    tempInput = tempInput.substr(point2 + 1,stringlength);
 
-    cout << "2" << endl;
-
-
+    // Use the source information to reset the timeout of the source
     this_host->activateNeighbour(sourceNode);
 
-
-
-
+    // Isolate the data of the message into subString
     temp= "data:";
     point1=tempInput.find(temp);
     point1=point1+temp.length();
     point2=tempInput.find("\n");
 
-    subString=tempInput.substr(point1,point2-point1);
+    subString = tempInput.substr(point1,point2-point1 + 1);
 
-    cout << "3" << endl;
+    // If the message is of type Distance Vector, update the table if data is new
+    // Check if data is new by comparing DV sent to the current DV in memory
+    if( (type=="dv") && (subString != this_host->getDistanceVector(sourceNode)) ){
 
+        // Debug message, indicates why change was made
+        cout << "RECIEVING CHANGED DISTANCE VECTOR" << endl;
+        cout << "OLD DV = " << this_host->getDistanceVector(sourceNode) << endl;
+        cout << "NEW DV = " << subString << endl;
 
-    //Let's deal with some incoming DV
-    if((type=="dv")&&(subString!=this_host->getDistanceVector(sourceNode))){
-      cout << "here?\n" ;
-      // New data is to be inputted
-      // WRITE CURRENT TABLE TO FILE !!!!!
-      this_host->clearRow(sourceNode);
-      // At this stage subString will hold a list of DVs in the form AB1 AE4
-      int subStringLength = subString.length();
-      string tempDV;
+        // At this point write the current host distance vector to a file
+        // Must include timestamp and other requirements from handout
 
-      cout << "4" << endl;
+        // As we are replacing data, we delete the data we previously had
+        this_host->clearRow(sourceNode);
 
+        // At this stage, subString hold a list of DVs in the form AB1 AE4 (May need to change)
+        subStringLength = subString.length();
 
-      while(point2!=-1){
-        point1 = subString.find(sourceNode);
-        point2 = subString.find(" ");
+        // While there are spaces left in the message
+        while(point2!=-1){
+            // Isolate a single Distance Value of the form AB1
+            point1 = subString.find(sourceNode);
+            point2 = subString.find(" ");
 
-        tempDV = subString.substr(point1,point2-point1);//tempDV will hold individual Distance Vectors
-        int weight = stoi(string(1,tempDV[2])); // get weight from third character of DV
-        this_host->updateTable(string(1,tempDV[0]),string(1,tempDV[1]),weight);
+            // tempDV stores individual Distance Values
+            tempDV = subString.substr(point1,point2-point1);
 
-        subStringLength-=point2;
+            // POSSIBLY TEMPORARY CHANGE:
+            // If I know a router is turned off any message telling me it can get to that node is out-of-date
+            // Therefore I dont update a node that I know is inactive
 
-        subString = subString.substr(point2+1,stringlength);
-        cout << "5" << endl;
+            // Update information on all nodes that I am not directly connected to
+            if(this_host->getLinks()->find(string(1,tempDV[1])) == this_host->getLinks()->end()){
+                // Get weight from final portion of tempDV
+                weight = stoi(tempDV.substr(2, tempDV.length() - 2));
 
+                // Update the host's information
+                this_host->updateTable(string(1,tempDV[0]),string(1,tempDV[1]),weight);
 
+                // Cut the Distance Value recorded from the rest of the subString
+                subStringLength-=point2;
+                subString = subString.substr(point2+1,stringlength);
+            }
+            // Else it's a neighbour, I only update if I know its active
+            else if (this_host->getLinks()->find(string(1,tempDV[1]))->second.active) {
+                // Get weight from final portion of tempDV
+                weight = stoi(tempDV.substr(2, tempDV.length() - 2));
+
+                // Update the host's information
+                this_host->updateTable(string(1,tempDV[0]),string(1,tempDV[1]),weight);
+
+                // Cut the Distance Value recorded from the rest of the subString
+                subStringLength-=point2;
+                subString = subString.substr(point2+1,stringlength);
+            }
+            // Else it's a deactivated neighbour, ignore that DV and move on
+            else {
+                // Cut this Distance Value from the rest of the subString
+                subStringLength-=point2;
+                subString = subString.substr(point2+1,stringlength);
+            }
         }
+
+        // Recalculate the Host's Distance Vector using this new information
         this_host->regenTable();
-        // WRITE NEW TABLE TO FILE !!!!!
 
+        // At this point write the new Distance Vector to the file
 
+        // Debug message, view the Distance Vectors stored by the host
         this_host->printTable();
+        cout << endl;
 
     }
-    else if(dv)
-    cout <<"DV received, no change...\n";
-    else
-    cout << "Data received: " << subString << endl;
-
-
-
+    // Possible debug messages for if message is not recognised
+    //else if(dv)
+    //cout <<"DV received, no change...\n";
+    //else
+    //cout << "Data received: " << subString << endl;
 }
-
-
-
-
-void sendPacket(int myPort);
-
-void DistinguishPacket(char buffer[], int n);
-
 
 int main(int argc, char* argv[])
 {
+    // Check if a host was passed to the program
     if(argc != 2){
         cout << "Incorrect arguments" << endl;
         return 0;
     }
 
 
-    if(0){
-
-        sendPacket((atoi(argv[1]) + 9935));
-
-        return 0;
-
-    }
-
+    // DECLARE VARIABLES
+    // datafile allows file manipulation
     fstream datafile;
+    // These strings temporarily store object attributes as they are read in from a file
     string tempHostname, tempDest, tempPort, tempWeight, currInput;
+    // Store the hostname from the user input
     HostObj thisHost(argv[1]);
 
-    // Open or create the neibhbourhood topology file
+
+    // READ IN DATA CODE
+    // Open or create the neighbourhood topology file
     datafile.open("neighbourhood.xml", ios::in);
     if(!datafile){
+        // Neighbourhood topology does not exist and must be created
         datafile.open("neighbourhood.xml", ios::out);
 
         // Declare links attached to A
@@ -452,379 +472,245 @@ int main(int argc, char* argv[])
     }
     datafile.close();
 
-    // XML reader
+    // Read neighbourhood topology file
     datafile.open("neighbourhood.xml", ios::in);
 
     while(datafile >> currInput) {
         tempHostname = "";
         //cout << "READING IN " << currInput << endl;
+
+        // Read input until the hostname tag is found
         if(currInput == "<hostname>"){
             datafile >> tempHostname;
             //cout << "Found host " << tempHostname << endl;
         }
 
+        // If the hostname is thisHost's name, this information is relevant and must be read
         if(tempHostname == thisHost.getHostname()){
             while(datafile >> currInput){
+                // This loop runs while reading information regarding a host
+                // We leave this loop when the host endtag is read in
+
                 //cout << "READING IN " << currInput << endl;
+
+                // Leave if endtag found
                 if(currInput == "</host>")
                     break;
 
                 while(datafile >> currInput){
+                    // This loop runs while reading information regarding a link
+                    // Leave this loop when the link endtag is read in
+
                     //cout << "READING IN " << currInput << endl;
+
+                    // Leave if endtag found
                     if(currInput == "</link>")
                         break;
 
+                    // If endtag is not yet found, we then read in the attributes
+
+                    // A link's detination
                     if(currInput == "<destination>")
                         datafile >> tempDest;
+
+                    // A link's port
                     if(currInput == "<port>")
                         datafile >> tempPort;
+
+                    // The weight associated with a link
                     if(currInput == "<weight>")
                         datafile >> tempWeight;
                 }
+
                 //cout << "Creating a link with properties " << tempDest << " " << tempPort << " " << tempWeight << endl;
+
+                // Add a new link, with the attributes we've previously isolated
                 thisHost.addLink(tempDest, atoi(tempPort.c_str()), atoi(tempWeight.c_str()));
             }
         }
     }
 
+    // We are done reading the file, so we close it
     datafile.close();
 
-    // CONNECTION TESTING
-    // Set up listening socket
-    //Initialize the command-line arguments
+
+    // CONNECTION SETUP CODE
+
+    // The port which I listen to is stored in the host object
     int myPort = thisHost.getreceivePort();
-    //int NodePort = atoi(argv[2]);
-    //Initialize otehr variables
+
+    //Initialize other variables
+
+    // sockfd is the ID of the listening socket
+    // This is the socket which receives incoming data
     int sockfd;
+
+    // The buffer stores the message which will be sent to other routers
     char buffer[MAXBUF];
-    //Socket addresses for THIS node and the node we wish to connect to
-    struct sockaddr_in myAddr;//, nodeAddr;
-    //Create socket
+
+    // Socket address for the host
+    struct sockaddr_in myAddr;
+
+    // Create UDP listening socket
     if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
         perror("Failed to create socket");
         exit(EXIT_FAILURE);
     }
-    //(I think this sets the addresses to 0)
+
+    // Clear the socket address, ensure we are starting from a blank address
     memset(&myAddr, 0, sizeof(myAddr));
-    //memset(&nodeAddr, 0, sizeof(nodeAddr));
-    //Information of MY node
-    myAddr.sin_family    = AF_INET; // IPv4
-    myAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    myAddr.sin_port = htons(myPort);
-    // Bind the socket with MY NODE's address
+
+    //Information of the host node
+    myAddr.sin_family    = AF_INET;                 // Use IPv4 format
+    myAddr.sin_addr.s_addr = htonl(INADDR_ANY);     // Assign IP address to this socket
+    myAddr.sin_port = htons(myPort);                // Assign the port to this socket
+
+    // Bind the socket with the host's address
     if ( bind(sockfd, (const struct sockaddr *)&myAddr, sizeof(myAddr)) < 0 ){
         perror("Bind failed");
         exit(EXIT_FAILURE);
     }
 
+    // We want to access the host's direct neighbours
+    // Use getLinks to get a linked list of all the host's neighbours
     std::map< std::string, struct link >* links = thisHost.getLinks();
     map< std::string, struct link >::iterator itr;
 
+    // Store temporary address information in nodeAddr
     struct sockaddr_in nodeAddr;
 
-    // initialising neighbouring port addresses
+    // Initialising neighbouring port addresses
+    // For every neighbour the host has,
     for(itr = links->begin(); itr != links->end(); ++itr){
+        // Start from blank address
         memset(&nodeAddr, 0, sizeof(nodeAddr));
 
+        // Use IPV4
         nodeAddr.sin_family = AF_INET;
+        // Use the current neighbour's port
         nodeAddr.sin_port = htons(itr->second.port);
+        // Use localhost (AKA 127.0.0.1) as the IP address
         if (inet_aton("127.0.0.1", &nodeAddr.sin_addr) == 0){
-            fprintf(stderr, "Error when using 'inet_aton()'\n");
+            fprintf(stderr, "Error assigning IP address'\n");
             exit(1);
         }
 
+        // Set the current neighbour's address to what is stored in nodeAddr
         itr->second.address = nodeAddr;
     }
 
 
-    //
-    thisHost.printTable();
+    // HANDLING CONNECTIONS CODE
 
-// SELECT STATEMENT ATTEMPT
-
+    // myTime stores the interval value that we wait for between messages
     struct timeval myTime;
+    // n is the number of characters in a received message
+    // numSockets is the number of active connections
     int n, numSockets;
+    // len stores various lengths and values associated with the current socket
     socklen_t len;
 
-
-
-    myTime.tv_sec = 5;
+    // Want interval between messages to be 2 seconds
+    myTime.tv_sec = 2;
     myTime.tv_usec = 0;
 
-    fd_set rfds;
-    fd_set wfds;
-    fd_set erfds;
+    // fd_sets are sets of sockets
+    fd_set rfds;    // The reading sockets
+    fd_set wfds;    // The watching sockets
+    fd_set erfds;   // The error sockets
 
+    // All sets are initially empty
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
     FD_ZERO(&erfds);
 
+    // Must track the maximum socket being used
+    // More relevant if we were creating multiple sockets
     int maxSockfd = sockfd;
 
+    // Add the listening socket to the sockets we watch
     FD_SET(sockfd, &wfds);
 
-    string RouterChar = argv[1];
-
-    string m = constructString(thisHost,1); //1 denotes DV
-    //string m = "type:dv\nsrc:" + RouterChar+ "\ndata:" + thisHost.getDistanceVector(RouterChar);
-    const char* message = m.c_str();
-
+    // Run this loop forever, we are always listening for messages
     while(true){
-        rfds = wfds;
 
+        // The reading and error socket sets are initially the watching sockets
+        rfds = wfds;
         erfds = wfds;
+        // We are initially using zero sockets
         numSockets = 0;
 
+        // Select sets the number of sockets we need to process
+        // It returns 0 if no sockets are active in the time interval specified
         if((numSockets = select(maxSockfd + 1, &rfds, NULL, NULL, &myTime)) < 0) {
-
             perror("select");
             return -1;
         }
+
+        // If no sockets were active for the time interval
         if(numSockets == 0){
+            // Make the message we want to send
+            // Use information from thisHost
+            // The message will be of a distance vector type denoted by 1
+            string m = constructString(thisHost,1);
 
-            myTime.tv_sec = 5;
+            // Message can only be transmitted as a char pointer
+            // Must convert as we do below
+            const char* message = m.c_str();
 
+            // Reset the interval so we once again wait 2 seconds to send a message
+            myTime.tv_sec = 2;
+
+            // For every active socket (Will just be 1 for us)
             for(int fd = 0; fd <= maxSockfd; fd++){
+                // For every neighbour
                 for(itr = links->begin(); itr != links->end(); ++itr){
+                    // Send our distance vector message
                     sendto(fd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address,  sizeof(itr->second.address));
                 }
             }
 
-
+            // Handle timeouts below
+            // For every active link
             for(itr = links->begin(); itr != links->end(); ++itr){
-
-
                 if(itr->second.active){
 
-                    itr->second.lifetime -= 5;
+                    // Reduce the lifetime by the two seconds that have passed
+                    itr->second.lifetime -= 2;
 
+                    // If the lifetime has run out
                     if(itr->second.lifetime < 0){
-
-                        //char temp = (itr->second.port - 9935);
                         cout << "Detected Router " << itr->first << " as INACTIVE" << endl << endl;
-                        thisHost.deleteNeighbour(itr->first);
 
+                        // Deactivate the link
+                        thisHost.deleteNeighbour(itr->first);
                     }
                 }
-
             }
         }
         else{
+            // If a socket was active during the time interval
+            // For every socket (1 in our case)
             for(int fd = 0; fd <= maxSockfd; fd++){
+                // Read in the message
                 if((n = recvfrom(fd, buffer, MAXBUF, 0, ( struct sockaddr *) &nodeAddr, &len)) > 0){
-
+                    // Null-terminate the incoming message
                     buffer[n] = '\0';
-
+                    // Convert the message to a string
                     string input = string(buffer);
 
+                    // Handle the message that is received
+                    // Note thisHost address passed
+                    // This is to actually change the values stored by the host
                     messageReceived(&thisHost, input);
-
-
-                    //string temp = "src:";
-
-                    //int marker = input.find(temp);
-                    //char source = buffer[marker+temp.length()];
-                    //string src (1, source);
-
-                    //DistinguishPacket(buffer, n);
-/*
-                    for(itr = links->begin(); itr != links->end(); ++itr){
-
-                        if(!(itr->second.active)){
-
-                            if((itr->first) == src){
-
-                                cout << endl << "Detected Router " << source << " as active" << endl << endl;
-
-
-                                thisHost.activateNeighbour(src);
-
-                                //if(itr->second.active)
-                                //    cout << "Active in main" << endl;
-
-                                //itr->second.active = true;
-                                //itr->second.lifetime = 15;
-
-
-
-
-                                sendto(fd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address, sizeof(itr->second.address));
-                            }
-
-                        }
-
-                        if((itr->second.active)){
-
-
-                            if((itr->second.port - 9935) == source){
-
-                                itr->second.lifetime = 15;
-
-                            }
-
-                        }
-                    }
-
-                    cout << "MESSAGE\n";
-                    for(int i = 0; i < n; i++){
-                        cout << buffer[i];
-                    }
-                    cout << endl << endl;
-
-
-                    */
-
-
-
-
                 }
             }
         }
     }
 
-
-
-
-
-
-
 /*
+    // OLD DISTANCE VECTOR TESTING CODE
 
-  string command;
-    int commandNumber = 0;
-    int runtimes = 0;
-    int command = 0;
-
-
-
-     cout << endl << "[1] LISTENER " << endl << "[2] SENDER " << endl << "[3] EXIT ";
-     bool validCommand = false;
-
-
-
-     while (!validCommand){
-       getline (cin,command);//Will try use getline as often as possible instead of cin >>
-       if(command.length()>1)
-         cout<< "Not a valid command, re-enter: ";
-       else
-         validCommand = true;
-     }
-
-
-     commandNumber = atoi(command.c_str());
-
-
-
-
-
-
-
-    while (runtimes<5){
-
-
-
-
-
-
-
-                int n;
-                socklen_t len;
-                //Node is set to LISTEN for incoming messages
-                if (commandNumber== 1){
-
-                    cout << "Listening on port " << argv[1] << "... " << endl;
-
-                    n = recvfrom(sockfd, buffer, MAXBUF, 0, ( struct sockaddr *) &nodeAddr, &len);
-                    buffer[n] = '\0';
-
-                    //Need code that parses the incoming messages and follows standards to deal with the messages
-                    string receivedString(buffer);
-                    //messageReceived(receivedString);
-
-                    messageReceived(thisHost,receivedString);
-                    //cout << "Node: ";
-                    /*
-                    for(int i = 0; i < n; i++){
-                        cout << buffer[i];
-
-                    }
-                        cout << endl;
-
-
-
-                }
-
-                else if(commandNumber== 2){
-
-                    string stringToSend;
-                    const char* cMessage;
-
-                    string desiredPort;
-
-                    cout << "Enter the host name you'd like to contact: ";
-                    getline(cin,desiredPort);
-
-                    //looptofind desiredPort
-                    bool desiredHostFound = false;
-                    itr = links.begin();
-                    while(itr!= links.end()&& !desiredHostFound){
-
-                        if((itr->first) == desiredPort){
-                          cout << "Host " << itr->first << " found succesfully.\n";
-                          desiredHostFound=true;
-                        }
-                        else {
-                          ++itr;
-                        }
-
-                    }
-
-                    if(!desiredHostFound){
-                      cout << "Failed to find Host " << desiredPort<< " .\n";
-
-                    }
-                    else{
-                      /*
-                      cout << "Enter the message that you wish to send: ";
-                      getline(cin,stringToSend);
-                      cout << "stringToSend: " << stringToSend << "\n";
-
-                      cMessage = stringToSend.c_str();
-
-                      cout << "cMessage: " << cMessage <<"\n";
-
-                      //I would like to test sending to specific port,
-                      stringToSend = constructString(thisHost);
-                      cMessage = stringToSend.c_str();
-                      //for(itrAddr = linkedAddrs.begin(); itrAddr != linkedAddrs.end(); ++itrAddr){
-
-                          sendto(sockfd, (const char *)cMessage, strlen(cMessage), 0, (const struct sockaddr *) &itr->second.address,  sizeof(itr->second.address));
-
-                      //}
-
-                  }
-
-                }
-                else if(commandNumber== 3)
-                break;
-
-
-      //  runtimes++;
-  }//End of running process
-
-
-
-
-
-
-
-
-
-*/
-
-
-/*
-    // DISTANCE VECTOR TESTING
     // Relevant HostObj Functions:
     // clearRow()           When receiving an update message, must disregard previous information using this function
     // activateNeighbour()  If a new neighbouring node comes online, implement it in fowarding table
@@ -928,79 +814,4 @@ int main(int argc, char* argv[])
 */
 
 	return 0;
-}
-
-void sendPacket(int myPort){
-
-    int NodePort = 10000;
-    char m[MAXBUF];
-    char *message;
-    fstream packet;
-    packet.open("packet.txt", ios::in);
-    if (packet.is_open()){
-        int i = 0;
-        while (!packet.eof()){
-
-            m[i] = packet.get();
-            i++;
-        }
-        //close the file and return 200 OK
-        packet.close();
-    }
-    message = &m[0];
-
-    //Initialize other variables
-    int sockfd;
-    //Socket addresses for THIS node and the node we wish to connect to
-    struct sockaddr_in myAddr, nodeAddr;
-    //Create socket
-    if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
-        perror("Failed to create socket");
-        exit(EXIT_FAILURE);
-    }
-    //(I think this sets the addresses to 0)
-    memset(&myAddr, 0, sizeof(myAddr));
-    memset(&nodeAddr, 0, sizeof(nodeAddr));
-    //Information of MY node
-    myAddr.sin_family    = AF_INET; // IPv4
-    myAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    myAddr.sin_port = htons(myPort);
-    // Bind the socket with MY NODE's address
-    if ( bind(sockfd, (const struct sockaddr *)&myAddr, sizeof(myAddr)) < 0 ){
-        perror("Bind failed");
-        exit(EXIT_FAILURE);
-    }
-    //Information of the node we wish to connect to
-    nodeAddr.sin_family = AF_INET;
-    nodeAddr.sin_port = htons(NodePort);
-    if (inet_aton("127.0.0.1", &nodeAddr.sin_addr) == 0){
-        fprintf(stderr, "Error when using 'inet_aton()'\n");
-        exit(1);
-    }
-
-    int n;
-    socklen_t len;
-
-    sendto(sockfd, (char *)message, strlen(message), 0, (const struct sockaddr *) &nodeAddr,  sizeof(nodeAddr));
-}
-
-void DistinguishPacket(char buffer[], int n){
-
-    string input = string(buffer);
-    string temp = "type:";
-
-    int marker = input.find(temp);
-    char type = buffer[marker+temp.length()];
-
-    if(type == 'p'){
-
-        //sendpacket(buffer);
-
-    }
-
-    else{
-
-        //distanceVector(buffer);
-
-    }
 }
