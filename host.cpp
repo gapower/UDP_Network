@@ -70,7 +70,7 @@ string constructString(HostObj this_host){
 void messageReceived(HostObj host, string input){
 
 
-    cout <<input << endl ;
+  //  cout <<input << endl ;
 
     int point1,point2,requiredLength;
     string temp,subString,tempInput;
