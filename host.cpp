@@ -22,45 +22,26 @@
 using namespace std;
 
 
-string constructString(HostObj this_host){
+string constructString(HostObj this_host, int messageType){
       string temp;
       string finalString;
       bool dv = true;
-      cout << "Constructing Message to send...\n";
-      cout << "Is this a Distance Vector? (yes/no) ";
-      getline(cin,temp);
-      if (temp=="no"){
-        dv = false;
-        temp="data";
+
+
+
+      if(messageType==1){//this is distance vector
+        finalString += "type:dv\nsrc:";
+        finalString += this_host.getHostname();
+        finalString += "\ndata:";
+        finalString += this_host.getDistanceVector(this_host.getHostname());
       }
-      else
-        temp ="dv";
-
-      finalString += "type:";
-      finalString += temp;
-      finalString += "\n";
-      temp = this_host.getHostname();
-      finalString += "src:";
-      finalString += temp;//add source, senderName
-      finalString += "\n"; //While testing, these didnt make sense, I think because there ended up being two \n s
-
-      if(dv)
-        cout << "please enter the distance vectors that\nyou would like to update in the form AB1 separated by a space:";
-      else
-        cout << "Please enter the string that you would like to send";
-
-      /*
-      getline(cin,temp);
-      if(temp=="a")
-      temp = "AB1 AB2 AB3 AB5";
-      finalString += "data:";
-      finalString += temp;
-      finalString += "\n"; //needed?
-      */
-      finalString += "data:";
-      temp=this_host.getDistanceVector(this_host.getHostname());//seems unneessary to have to include the string as an arg
-      cout << temp ;
-      finalString += temp;
+      else{
+        finalString += "type:msg\nsrc:";
+        finalString += this_host.getHostname();
+        finalString += "\ndata:";
+        finalString += this_host.getDistanceVector(this_host.getHostname());
+        finalString += "dest:";
+      }
 
       return finalString;
 
@@ -68,33 +49,33 @@ string constructString(HostObj this_host){
 
 
 
-void messageReceived(HostObj host, string input){
+void messageReceived(HostObj *this_host, string input){
 
-
-  //  cout <<input << endl ;
+  cout << "Input:" << input << endl;
 
     int point1,point2,requiredLength;
     string temp,subString,tempInput;
     bool dv = false;
-    string sourceNode;
+    string type,sourceNode;
 
 
     tempInput = input;
 
 
     int stringlength=tempInput.length();
-
+    //Checking whether it is receiving a distance vector or not
     temp= "type:";
     point1=tempInput.find(temp);
     point1=point1+temp.length();
     point2=tempInput.find("\n");
 
-    subString=tempInput.substr(point1,point2-point1);
+    type=tempInput.substr(point1,point2-point1);
 
-    cout << "Type(dv or data): " << subString << endl;
+    //cout << "Type(dv or data): " << subString << endl;
 
-    if(subString== "dv")
-      dv=true;
+
+cout << "1" << endl;
+
 
     stringlength -= point2;
 
@@ -105,13 +86,18 @@ void messageReceived(HostObj host, string input){
     point1=point1+temp.length();
     point2=tempInput.find("\n");
 
-    subString=tempInput.substr(point1,point2-point1);
-
-    cout << "Source node: "<< subString << endl;
-    sourceNode = subString;
+    sourceNode=tempInput.substr(point1,point2-point1);
+    cout << "SourceNode:" << sourceNode << endl;
+    cout << this_host->getDistanceVector(sourceNode) << endl;
     stringlength -= point2;
-
     tempInput = tempInput.substr(point2+1,stringlength);
+
+    cout << "2" << endl;
+
+
+    this_host->activateNeighbour(sourceNode);
+
+
 
 
     temp= "data:";
@@ -121,49 +107,48 @@ void messageReceived(HostObj host, string input){
 
     subString=tempInput.substr(point1,point2-point1);
 
-    //Let's deal with some incoming DV
-    if(dv){
+    cout << "3" << endl;
 
+
+    //Let's deal with some incoming DV
+    if((type=="dv")&&(subString!=this_host->getDistanceVector(sourceNode))){
+      cout << "here?\n" ;
+      // New data is to be inputted
+      // WRITE CURRENT TABLE TO FILE !!!!!
+      this_host->clearRow(sourceNode);
       // At this stage subString will hold a list of DVs in the form AB1 AE4
       int subStringLength = subString.length();
       string tempDV;
-      int counter = 0;
-      //point1 = subString.find(sourceNode);
-      //point2 = subString.find(" ");// Find function returns -1 if not found
 
+      cout << "4" << endl;
 
 
       while(point2!=-1){
         point1 = subString.find(sourceNode);
         point2 = subString.find(" ");
-        counter ++;
 
-        tempDV = subString.substr(point1,point2-point1);//tempDV will hol
+        tempDV = subString.substr(point1,point2-point1);//tempDV will hold individual Distance Vectors
         int weight = stoi(string(1,tempDV[2])); // get weight from third character of DV
-        host.updateTable(string(1,tempDV[0]),string(1,tempDV[1]),weight);
+        this_host->updateTable(string(1,tempDV[0]),string(1,tempDV[1]),weight);
 
-        //cout << counter << ": " << tempDV << endl;
-        /*
-        for(int i=0;i<3;i++){
-          cout << tempDV[i] << endl ;
-        }
-        */
         subStringLength-=point2;
 
         subString = subString.substr(point2+1,stringlength);
+        cout << "5" << endl;
 
-
-          //need to update subString
 
         }
+        this_host->regenTable();
+        // WRITE NEW TABLE TO FILE !!!!!
 
-        host.printTable();
+
+        this_host->printTable();
 
     }
-
-
+    else if(dv)
+    cout <<"DV received, no change...\n";
     else
-    cout << "Data: " << subString << endl;
+    cout << "Data received: " << subString << endl;
 
 
 
@@ -184,7 +169,7 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    
+
     if(0){
 
         sendPacket((atoi(argv[1]) + 9935));
@@ -562,7 +547,7 @@ int main(int argc, char* argv[])
     socklen_t len;
 
 
-   
+
     myTime.tv_sec = 5;
     myTime.tv_usec = 0;
 
@@ -579,7 +564,9 @@ int main(int argc, char* argv[])
     FD_SET(sockfd, &wfds);
 
     string RouterChar = argv[1];
-    string m = "type:dv\nsrc:" + RouterChar+ "\ndata:" + thisHost.getDistanceVector(RouterChar);
+
+    string m = constructString(thisHost,1); //1 denotes DV
+    //string m = "type:dv\nsrc:" + RouterChar+ "\ndata:" + thisHost.getDistanceVector(RouterChar);
     const char* message = m.c_str();
 
     while(true){
@@ -600,7 +587,7 @@ int main(int argc, char* argv[])
             for(int fd = 0; fd <= maxSockfd; fd++){
                 for(itr = links->begin(); itr != links->end(); ++itr){
                     sendto(fd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address,  sizeof(itr->second.address));
-                } 
+                }
             }
 
 
@@ -613,9 +600,9 @@ int main(int argc, char* argv[])
 
                     if(itr->second.lifetime < 0){
 
-                        char temp = (itr->second.port - 9935);
-                        cout << "Detected Router " << temp << " as INACTIVE" << endl << endl;
-                        itr->second.active = false;
+                        //char temp = (itr->second.port - 9935);
+                        cout << "Detected Router " << itr->first << " as INACTIVE" << endl << endl;
+                        thisHost.deleteNeighbour(itr->first);
 
                     }
                 }
@@ -629,14 +616,18 @@ int main(int argc, char* argv[])
                     buffer[n] = '\0';
 
                     string input = string(buffer);
-                    string temp = "src:";
-                        
-                    int marker = input.find(temp);
-                    char source = buffer[marker+temp.length()];
-                    string src (1, source);
 
-                    DistinguishPacket(buffer, n);
+                    messageReceived(&thisHost, input);
 
+
+                    //string temp = "src:";
+
+                    //int marker = input.find(temp);
+                    //char source = buffer[marker+temp.length()];
+                    //string src (1, source);
+
+                    //DistinguishPacket(buffer, n);
+/*
                     for(itr = links->begin(); itr != links->end(); ++itr){
 
                         if(!(itr->second.active)){
@@ -645,7 +636,7 @@ int main(int argc, char* argv[])
 
                                 cout << endl << "Detected Router " << source << " as active" << endl << endl;
 
-                                
+
                                 thisHost.activateNeighbour(src);
 
                                 //if(itr->second.active)
@@ -655,13 +646,13 @@ int main(int argc, char* argv[])
                                 //itr->second.lifetime = 15;
 
 
-    
+
 
                                 sendto(fd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address, sizeof(itr->second.address));
                             }
-                            
+
                         }
-                        
+
                         if((itr->second.active)){
 
 
@@ -673,11 +664,19 @@ int main(int argc, char* argv[])
 
                         }
                     }
+
                     cout << "MESSAGE\n";
                     for(int i = 0; i < n; i++){
                         cout << buffer[i];
                     }
                     cout << endl << endl;
+
+
+                    */
+
+
+
+
                 }
             }
         }
@@ -690,7 +689,7 @@ int main(int argc, char* argv[])
 
 
 /*
-  
+
   string command;
     int commandNumber = 0;
     int runtimes = 0;
@@ -750,7 +749,7 @@ int main(int argc, char* argv[])
 
                     }
                         cout << endl;
-                          */
+
 
 
                 }
@@ -793,7 +792,7 @@ int main(int argc, char* argv[])
                       cMessage = stringToSend.c_str();
 
                       cout << "cMessage: " << cMessage <<"\n";
-                      */
+
                       //I would like to test sending to specific port,
                       stringToSend = constructString(thisHost);
                       cMessage = stringToSend.c_str();
@@ -939,37 +938,37 @@ void sendPacket(int myPort){
     fstream packet;
     packet.open("packet.txt", ios::in);
     if (packet.is_open()){
-        int i = 0;                                                                                                                    
+        int i = 0;
         while (!packet.eof()){
 
             m[i] = packet.get();
             i++;
         }
-        //close the file and return 200 OK                                                                                                                                                          
+        //close the file and return 200 OK
         packet.close();
     }
     message = &m[0];
 
     //Initialize other variables
-    int sockfd; 
+    int sockfd;
     //Socket addresses for THIS node and the node we wish to connect to
-    struct sockaddr_in myAddr, nodeAddr; 
+    struct sockaddr_in myAddr, nodeAddr;
     //Create socket
-    if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
-        perror("Failed to create socket"); 
-        exit(EXIT_FAILURE); 
-    } 
+    if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
+        perror("Failed to create socket");
+        exit(EXIT_FAILURE);
+    }
     //(I think this sets the addresses to 0)
-    memset(&myAddr, 0, sizeof(myAddr)); 
-    memset(&nodeAddr, 0, sizeof(nodeAddr)); 
+    memset(&myAddr, 0, sizeof(myAddr));
+    memset(&nodeAddr, 0, sizeof(nodeAddr));
     //Information of MY node
-    myAddr.sin_family    = AF_INET; // IPv4 
-    myAddr.sin_addr.s_addr = htonl(INADDR_ANY); 
-    myAddr.sin_port = htons(myPort); 
-    // Bind the socket with MY NODE's address 
-    if ( bind(sockfd, (const struct sockaddr *)&myAddr, sizeof(myAddr)) < 0 ){ 
-        perror("Bind failed"); 
-        exit(EXIT_FAILURE); 
+    myAddr.sin_family    = AF_INET; // IPv4
+    myAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    myAddr.sin_port = htons(myPort);
+    // Bind the socket with MY NODE's address
+    if ( bind(sockfd, (const struct sockaddr *)&myAddr, sizeof(myAddr)) < 0 ){
+        perror("Bind failed");
+        exit(EXIT_FAILURE);
     }
     //Information of the node we wish to connect to
     nodeAddr.sin_family = AF_INET;
@@ -979,7 +978,7 @@ void sendPacket(int myPort){
         exit(1);
     }
 
-    int n; 
+    int n;
     socklen_t len;
 
     sendto(sockfd, (char *)message, strlen(message), 0, (const struct sockaddr *) &nodeAddr,  sizeof(nodeAddr));
@@ -989,7 +988,7 @@ void DistinguishPacket(char buffer[], int n){
 
     string input = string(buffer);
     string temp = "type:";
-        
+
     int marker = input.find(temp);
     char type = buffer[marker+temp.length()];
 

@@ -58,7 +58,7 @@ void HostObj::activateNeighbour(string neighbour){
     //if(links.find(neighbour)->second.active)
     //  cout << "Active in function" << endl;
 
-    
+
 
     fwdtable.find(hostname)->second.insert(pair<string, int>(neighbour, weight));
 }
@@ -334,12 +334,14 @@ std::map< std::string, link >* HostObj::getLinks(){
     return &links;
 }
 
-string HostObj::getDistanceVector(string source){ 
+string HostObj::getDistanceVector(string source){
     map< string, map<string, int> >::iterator DistVec;
     map<string, int>::iterator itr;
     string output = "";
 
     DistVec = fwdtable.find(source);
+    if(DistVec == fwdtable.end())
+      return "No dist vec";
 
     for(itr = DistVec->second.begin(); itr != DistVec->second.end(); ++itr){
         output += source;
@@ -353,4 +355,3 @@ string HostObj::getDistanceVector(string source){
 
     return output;
 }
-
