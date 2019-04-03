@@ -21,11 +21,24 @@
 
 using namespace std;
 
+void sendPacket(int myPort);
+
+void DistinguishPacket(char buffer[], int n);
+
 int main(int argc, char* argv[])
 {
     if(argc != 2){
         cout << "Incorrect arguments" << endl;
         return 0;
+    }
+
+    
+    if(0){
+
+        sendPacket((atoi(argv[1]) + 9935));
+
+        return 0;
+
     }
 
     fstream datafile;
@@ -386,11 +399,7 @@ int main(int argc, char* argv[])
         itr->second.address = nodeAddr;
     }
 
-
-
-
 // SELECT STATEMENT ATTEMPT
-
 
     struct timeval myTime;
     int n, numSockets;
@@ -411,11 +420,8 @@ int main(int argc, char* argv[])
 
     FD_SET(sockfd, &wfds);
 
-    int clock = 0;
-    bool send = true;
-
     string RouterChar = argv[1];
-    string m = "type:dv\nsrc:" + RouterChar+ "\ndata:cheese";
+    string m = "type:dv\nsrc:" + RouterChar+ "\ndata:hello";
     const char* message = m.c_str();
 
     while(true){
@@ -427,7 +433,6 @@ int main(int argc, char* argv[])
             perror("select");
             return -1;
         }
-        //cout << "numSockets = " << numSockets << endl;
         if(numSockets == 0){
 
             myTime.tv_sec = 5;
@@ -436,6 +441,22 @@ int main(int argc, char* argv[])
                 for(itr = links.begin(); itr != links.end(); ++itr){
                     sendto(fd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address,  sizeof(itr->second.address));
                 } 
+            }
+
+            for(itr = links.begin(); itr != links.end(); ++itr){
+
+                if(itr->second.active){
+
+                    itr->second.lifetime -= 5;
+
+                    if(itr->second.lifetime < 0){
+
+                        char temp = (itr->second.port - 9935);
+                        cout << "Detected Router " << temp << " as INACTIVE" << endl << endl;
+                        itr->second.active = false;
+
+                    }
+                }
             }
         }
         else{
@@ -450,41 +471,40 @@ int main(int argc, char* argv[])
                     int marker = input.find(temp);
                     char source = buffer[marker+temp.length()];
 
+                    DistinguishPacket(buffer, n);
+
                     for(itr = links.begin(); itr != links.end(); ++itr){
 
                         if(!(itr->second.active)){
 
                             if((itr->second.port - 9935) == source){
 
-                                cout << endl << "Detected Router " << source << " as active" << endl << endl;;
-                                itr->second.active = true;
-                                itr->second.lifetime = 15;
+                                cout << endl << "Detected Router " << source << " as active" << endl << endl;
 
-                                sendto(fd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address,  sizeof(itr->second.address));
+                                string src (1, source);
+                                thisHost.activateNeighbour(src);
+
+                                if(itr->second.active)
+                                    cout << "Active in main" << endl;
+
+                                //itr->second.active = true;
+                                //itr->second.lifetime = 15;
+
+                                sendto(fd, (const char *)message, strlen(message), 0, (const struct sockaddr *) &itr->second.address, sizeof(itr->second.address));
                             }
                             
                         }
-                        /*
+                        
                         if((itr->second.active)){
 
-                            if((itr->second.port - 9935) != source){
+                            if((itr->second.port - 9935) == source){
 
-                                itr->second.lifetime -= 5;
-
-                            }
-                            else itr->second.lifetime = 15;
-                            
-                            if(itr->second.lifetime < 0){
-
-                                cout << "Detected Router " << source << " as INACTIVE" << endl;
-                                itr->second.active = false;
+                                itr->second.lifetime = 15;
 
                             }
 
                         }
-                        */
                     }
-                    
                     cout << "MESSAGE\n";
                     for(int i = 0; i < n; i++){
                         cout << buffer[i];
@@ -656,4 +676,79 @@ int main(int argc, char* argv[])
 */
 
 	return 0;
+}
+
+void sendPacket(int myPort){
+
+    int NodePort = 10000;
+    char m[MAXBUF];
+    char *message;
+    fstream packet;
+    packet.open("packet.txt", ios::in);
+    if (packet.is_open()){
+        int i = 0;                                                                                                                    
+        while (!packet.eof()){
+
+            m[i] = packet.get();
+            i++;
+        }
+        //close the file and return 200 OK                                                                                                                                                          
+        packet.close();
+    }
+    message = &m[0];
+
+    //Initialize other variables
+    int sockfd; 
+    //Socket addresses for THIS node and the node we wish to connect to
+    struct sockaddr_in myAddr, nodeAddr; 
+    //Create socket
+    if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
+        perror("Failed to create socket"); 
+        exit(EXIT_FAILURE); 
+    } 
+    //(I think this sets the addresses to 0)
+    memset(&myAddr, 0, sizeof(myAddr)); 
+    memset(&nodeAddr, 0, sizeof(nodeAddr)); 
+    //Information of MY node
+    myAddr.sin_family    = AF_INET; // IPv4 
+    myAddr.sin_addr.s_addr = htonl(INADDR_ANY); 
+    myAddr.sin_port = htons(myPort); 
+    // Bind the socket with MY NODE's address 
+    if ( bind(sockfd, (const struct sockaddr *)&myAddr, sizeof(myAddr)) < 0 ){ 
+        perror("Bind failed"); 
+        exit(EXIT_FAILURE); 
+    }
+    //Information of the node we wish to connect to
+    nodeAddr.sin_family = AF_INET;
+    nodeAddr.sin_port = htons(NodePort);
+    if (inet_aton("127.0.0.1", &nodeAddr.sin_addr) == 0){
+        fprintf(stderr, "Error when using 'inet_aton()'\n");
+        exit(1);
+    }
+
+    int n; 
+    socklen_t len;
+
+    sendto(sockfd, (char *)message, strlen(message), 0, (const struct sockaddr *) &nodeAddr,  sizeof(nodeAddr));
+}
+
+void DistinguishPacket(char buffer[], int n){
+
+    string input = string(buffer);
+    string temp = "type:";
+        
+    int marker = input.find(temp);
+    char type = buffer[marker+temp.length()];
+
+    if(type == 'p'){
+
+        //sendpacket(buffer);
+
+    }
+
+    else{
+
+        //distanceVector(buffer);
+
+    }
 }
