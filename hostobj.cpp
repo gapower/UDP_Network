@@ -1,3 +1,4 @@
+
 #include "hostobj.h"
 #include "link.h"
 #include <string>
@@ -43,12 +44,21 @@ void HostObj::addLink(string dest, int port, int weight){
 void HostObj::activateNeighbour(string neighbour){
     int weight;
 
-    if(links.find(neighbour) == links.end())
-      return;
+    //cout << "MADE IT TO FUNCTION" << endl;
+
+    if(links.find(neighbour) == links.end()){
+        //cout << "Can't find neighbour" << endl;
+        return;
+    }
 
     links.find(neighbour)->second.active = true;
     links.find(neighbour)->second.lifetime = 15;
     weight = links.find(neighbour)->second.weight;
+
+    //if(links.find(neighbour)->second.active)
+    //  cout << "Active in function" << endl;
+
+    
 
     fwdtable.find(hostname)->second.insert(pair<string, int>(neighbour, weight));
 }
@@ -320,11 +330,11 @@ int HostObj::getreceivePort(){
     return receiveport;
 }
 
-std::map< std::string, link > HostObj::getLinks(){
-    return links;
+std::map< std::string, link >* HostObj::getLinks(){
+    return &links;
 }
 
-string HostObj::getDistanceVector(string source){
+string HostObj::getDistanceVector(string source){ 
     map< string, map<string, int> >::iterator DistVec;
     map<string, int>::iterator itr;
     string output = "";
@@ -337,8 +347,10 @@ string HostObj::getDistanceVector(string source){
         output += to_string(itr->second);
         output += " ";
     }
+
     output = output.substr(0, output.length() - 1);
     output += "\n";
-    
+
     return output;
 }
+
