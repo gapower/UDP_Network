@@ -54,7 +54,7 @@ void messageReceived(HostObj *this_host, string input){
     int point1, point2;
 
     // Track length of strings
-    int stringLength, subStringLength;
+    int stringlength, subStringLength;
 
     // temp holds holds flags which we search for in the string
     // tempInput holds the to be uncoded parts of the message
@@ -129,6 +129,8 @@ void messageReceived(HostObj *this_host, string input){
             // tempDV stores individual Distance Values
             tempDV = subString.substr(point1,point2-point1);
 
+
+
             // POSSIBLY TEMPORARY CHANGE:
             // If I know a router is turned off any message telling me it can get to that node is out-of-date
             // Therefore I dont update a node that I know is inactive
@@ -136,33 +138,24 @@ void messageReceived(HostObj *this_host, string input){
             // Update information on all nodes that I am not directly connected to
             if(this_host->getLinks()->find(string(1,tempDV[1])) == this_host->getLinks()->end()){
                 // Get weight from final portion of tempDV
-                weight = stoi(tempDV.substr(2, tempDV.length() - 2));
+                weight = stoi(tempDV.substr(3, tempDV.length() - 3));
 
                 // Update the host's information
-                this_host->updateTable(string(1,tempDV[0]),string(1,tempDV[1]),weight);
-
-                // Cut the Distance Value recorded from the rest of the subString
-                subStringLength-=point2;
-                subString = subString.substr(point2+1,stringlength);
+                this_host->updateTable(string(1,tempDV[0]),string(1,tempDV[1]),string(1,tempDV[2]), weight);
             }
             // Else it's a neighbour, I only update if I know its active
             else if (this_host->getLinks()->find(string(1,tempDV[1]))->second.active) {
                 // Get weight from final portion of tempDV
-                weight = stoi(tempDV.substr(2, tempDV.length() - 2));
+                weight = stoi(tempDV.substr(3, tempDV.length() - 3));
 
                 // Update the host's information
-                this_host->updateTable(string(1,tempDV[0]),string(1,tempDV[1]),weight);
-
-                // Cut the Distance Value recorded from the rest of the subString
-                subStringLength-=point2;
-                subString = subString.substr(point2+1,stringlength);
+                this_host->updateTable(string(1,tempDV[0]),string(1,tempDV[1]),string(1,tempDV[2]), weight);
             }
             // Else it's a deactivated neighbour, ignore that DV and move on
-            else {
-                // Cut this Distance Value from the rest of the subString
-                subStringLength-=point2;
-                subString = subString.substr(point2+1,stringlength);
-            }
+
+            // Cut the Distance Value recorded from the rest of the subString
+            subStringLength -= point2;
+            subString = subString.substr(point2+1,stringlength);
         }
 
         // Recalculate the Host's Distance Vector using this new information

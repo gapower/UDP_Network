@@ -18,9 +18,9 @@ HostObj::HostObj(std::string name){
 
     // Create empty distance vector table
     // Only value in this table is that a host is connected to itself
-    map <string, int> newMap;
-    newMap.insert(pair<string, int>(hostname, 0));
-    fwdtable.insert(pair<string, map<string, int> >(hostname, newMap));
+    map <string, pair<string, int> > newMap;
+    newMap.insert(pair<string, pair<string, int> >(hostname, pair<string, int>(hostname, 0)));
+    fwdtable.insert(pair<string, map<string, pair<string, int> > >(hostname, newMap));
 }
 
 // Add a new neighbour to the host, given the neighbour's name, port, and weight
@@ -56,13 +56,13 @@ void HostObj::activateNeighbour(string neighbour){
     weight = links.find(neighbour)->second.weight;      // Find the weight of this connection
 
     // Store in host's distance vector, the now active link
-    fwdtable.find(hostname)->second.insert(pair<string, int>(neighbour, weight));
+    fwdtable.find(hostname)->second.insert(pair<string, pair<string, int> >(neighbour, pair<string, int>(neighbour, weight)));
 }
 
 // Mark a neighbour as inactive
 void HostObj::deleteNeighbour(string neighbour){
     // Define an iterator, which allows navigation of distance vector table
-    map< std::string, std::map< std::string, int > >::iterator itr;
+    map< std::string, std::map< std::string, pair<string, int > > >::iterator itr;
 
     // If the link doesn't exist, do nothing
     if(links.find(neighbour) == links.end()){
@@ -125,7 +125,7 @@ void HostObj::printTable(){
                 // If the destination exists
                 if(fwdtable.find(src)->second.find(dest) != fwdtable.find(src)->second.end())
                     // Print the weight
-                    cout << fwdtable.find(src)->second.find(dest)->second << " ";
+                    cout << fwdtable.find(src)->second.find(dest)->second.second << " ";
                 // If the destination does not exist, print an empty coordinate
                 else
                     cout << "- ";
@@ -141,29 +141,32 @@ void HostObj::printTable(){
 }
 
 // Update a distance value, given the source, destination, and the new weight of this path
-void HostObj::updateTable(std::string src, std::string dest, int newWeight){
+void HostObj::updateTable(string src, string dest, string path, int newWeight){
 
     // If the source doesn't exist already in the table
     // This means its a new source and must be added
     if(fwdtable.find(src) == fwdtable.end()){
         // Create a blank distance vector for this new source, with two connections
         // It's connected to itself with 0, and the host with the weight that is passed
-        map<string, int> newMap;
-        newMap.insert(pair<string, int>(src, 0));
-        newMap.insert(pair<string, int> (dest, newWeight));
+        // Add the path node to the distance vector, paths to itself when destination is itself
+        map<string, pair<string, int> > newMap;
+        newMap.insert(pair<string, pair<string, int> >(src, pair<string, int>(src, 0)));
+        newMap.insert(pair<string, pair<string, int> >(dest, pair<string, int>(path, newWeight)));
 
         // Add this distance vector to our table
-        fwdtable.insert(pair<string, map<string, int> >(src, newMap));
+        fwdtable.insert(pair<string, map<string, pair<string, int> > >(src, newMap));
     }
     // The source already exists
     else {
         // If the source does not have a path to the destination
-        if(fwdtable.find(src)->second.find(dest) == fwdtable.find(src)->second.end())
+        if(fwdtable.find(src)->second.find(dest) == fwdtable.find(src)->second.end()){
             // Change the source's distance vector to have this new path
-            fwdtable.find(src)->second.insert(pair<string, int> (dest, newWeight));
+            fwdtable.find(src)->second.insert(pair<string, pair<string, int> > (dest, pair<string, int>(path, newWeight)));
         // This source has a path to this destination already, must change an existing entry
-        else
-            fwdtable.find(src)->second.find(dest)->second = newWeight;
+        } else {
+            fwdtable.find(src)->second.find(dest)->second.first = path;
+            fwdtable.find(src)->second.find(dest)->second.second = newWeight;
+        }
     }
 
     return;
@@ -179,16 +182,16 @@ void HostObj::regenTable(){
     // For navigating through the list of neighbours
     map<string, struct link>::iterator itr1;
     // For navigating through values in a distance vector
-    map<string, int>::iterator itr2;
+    map<string, pair<string, int> >::iterator itr2;
     // Create a blank distance vector that will be the host's new distance vector
-    map<string, int> hostTable;
+    map<string, pair<string, int> > hostTable;
     // Store distance vectors of neighbours in currTable
-    map<string, int>* currTable;
+    map<string, pair<string, int> >* currTable;
 
     // Delete the old distance vector of the host
     fwdtable.erase(hostname);
     // First connection in the new table is the host's connection to itself
-    hostTable.insert(pair<string, int> (hostname, 0));
+    hostTable.insert(pair<string, pair<string, int> > (hostname, pair<string, int>(hostname, 0)));
 
     // Add direct connections to the host's distance vector
     // Only add active neighbours to the DV
@@ -198,7 +201,7 @@ void HostObj::regenTable(){
                 // If not already defined
                 if(hostTable.find(itr1->first) == hostTable.end())
                     // Define this link in fwdtable
-                    hostTable.insert(pair<string, int> (itr1->first, itr1->second.weight));
+                    hostTable.insert(pair<string, pair<string, int> > (itr1->first, pair<string, int>(itr1->first, itr1->second.weight)));
 
     // Run this code as long as the distance vectors are changing
     while(change){
@@ -210,7 +213,7 @@ void HostObj::regenTable(){
             if(itr1->second.active){
                 // Grab lowest cost to this neighbour
                 // This will either be the direct connection or some other path
-                cost = hostTable.find(itr1->first)->second;
+                cost = hostTable.find(itr1->first)->second.second;
 
                 // If this link already exists in the distance vector table
                 if(fwdtable.find(itr1->first) != fwdtable.end()){
@@ -224,17 +227,20 @@ void HostObj::regenTable(){
 
                         // If the host has no path to this destination
                         // Add a new path travelling through the current neighbour
-                        if(hostTable.find(itr2->first) == hostTable.end()){
+                        // Note we don't update if the path suggests pathing back through this host
+                        //cout << "Comparing " << hostname << " and " << itr2->second.first << endl;
+                        if(hostTable.find(itr2->first) == hostTable.end() && hostname != itr2->second.first){
                             // A change has taken place
                             change = true;
 
                             //cout << "Adding " << itr2->first << " with weight " << cost + itr2->second << endl;
 
                             // Update the distance vector with this new path
-                            hostTable.insert(pair<string, int>(itr2->first, cost + itr2->second));
+                            hostTable.insert(pair<string, pair<string, int> >(itr2->first, pair<string, int>(itr1->first, cost + itr2->second.second)));
                         }
                         // If the path through currNode is cheaper than the current path the host has
-                        else if(cost + itr2->second < hostTable.find(itr2->first)->second){
+                        // Note we don't update if the path suggests pathing back through this host
+                        else if(cost + itr2->second.second < hostTable.find(itr2->first)->second.second && hostname != itr2->second.first){
                             // A change has taken place
                             change = true;
 
@@ -243,7 +249,7 @@ void HostObj::regenTable(){
                             //cout << hostTable.find(itr2->first)->first << " with weight " << cost + itr2->second << endl;
 
                             // Update the distance vector with this new path
-                            hostTable.find(itr2->first)->second = cost + itr2->second;
+                            hostTable.find(itr2->first)->second.second = cost + itr2->second.second;
                         }
                     }
                 }
@@ -251,14 +257,39 @@ void HostObj::regenTable(){
         }
     }
 
+    // Delete poisoned routes
+    itr2 = hostTable.begin();
+    string delnodeName;
+
+    while(itr2 != hostTable.end()){
+        delnodeName = itr2->first;
+        if(itr2->second.second > 18){
+            ++itr2;
+            hostTable.erase(delnodeName);
+        } else
+            ++itr2;
+    }
+
     // Commit the host's new distance vector to the table of distance vectors
-    fwdtable.insert(pair<string, map <string, int> > (hostname, hostTable));
+    fwdtable.insert(pair<string, map <string, pair<string, int> > > (hostname, hostTable));
 
     return;
 }
 
 // Find the best route to a destination (will likely be changed)
 struct link* HostObj::findSendLink(string dest){
+    string path;
+
+    if(fwdtable.find(hostname)->second.find(dest) != fwdtable.find(hostname)->second.end()){
+        path = fwdtable.find(hostname)->second.find(dest)->second.first;
+    }
+    else return NULL;
+
+    if(links.find(path) != links.end())
+        return &links.find(path)->second;
+    else return NULL;
+
+    /*
     int cost;
     int sendCost = 0;
     link* SendingLink = NULL;
@@ -308,6 +339,7 @@ struct link* HostObj::findSendLink(string dest){
     }
     //cout << endl;
     return SendingLink;
+    */
 }
 
 // Delete a distance vector
@@ -358,9 +390,9 @@ std::map< std::string, link >* HostObj::getLinks(){
 // Also used for detecting if incoming DVs have changed
 string HostObj::getDistanceVector(string source){
     // For navigating through table of distance vectors
-    map< string, map<string, int> >::iterator DistVec;
+    map< string, map<string, pair<string, int> > >::iterator DistVec;
     // For navigating through a distance vector
-    map<string, int>::iterator itr;
+    map<string, pair<string, int> >::iterator itr;
 
     // Start with empty output
     string output = "";
@@ -374,10 +406,11 @@ string HostObj::getDistanceVector(string source){
 
     // Add each path in the distance vector to the outgoing message
     for(itr = DistVec->second.begin(); itr != DistVec->second.end(); ++itr){
-        output += source;                   // Add source node
-        output += itr->first;               // Add destination
-        output += to_string(itr->second);   // Add weight of this path
-        output += " ";                      // Space indicates end of path details
+        output += source;                           // Add source node
+        output += itr->first;                       // Add destination
+        output += itr->second.first;                // Add path node
+        output += to_string(itr->second.second);    // Add weight of this path
+        output += " ";                              // Space indicates end of path details
     }
 
     output = output.substr(0, output.length() - 1);     // Remove the excess space char at the end of the message

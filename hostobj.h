@@ -24,7 +24,7 @@ public:
     // Print the table of distance vectors
     void printTable();
     // Update a distance value in this table, e.g. AB4 -> AB3
-    void updateTable(std::string, std::string, int);
+    void updateTable(std::string, std::string, std::string, int);
     // Calculate the host's distance vector
     void regenTable();
     // Mark a node as active
@@ -51,5 +51,5 @@ private:
     // All of the host's neighbours
     std::map< std::string, struct link > links;
     // The host's current distance vectors
-    std::map< std::string, std::map< std::string, int > > fwdtable;
+    std::map< std::string, std::map< std::string, std::pair<std::string, int> > > fwdtable;
 };
